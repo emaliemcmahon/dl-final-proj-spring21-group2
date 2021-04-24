@@ -41,7 +41,9 @@ parser.add_argument('-patience','--early_stop_patience', default=3, type=int,
 print('==> Preparing data..')
 
 # image size = 32x32x32
-
+# resize image to 256x256x3 to match ImageNet image size for pretrained CORnet-Z
+# Modify mean and stdev to ImageNet mean and stdev
+# CIFAR-10 : transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
 transform_train = transforms.Compose([
     transforms.Resize(256),
     transforms.RandomCrop(224, padding=4),
