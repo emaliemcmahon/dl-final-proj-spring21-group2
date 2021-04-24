@@ -63,18 +63,18 @@ learning_rate = options.learning_rate
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
                                         download=True, transform=transform)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                          shuffle=True, num_workers=2)
+                                          shuffle=True)
 
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                        download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
-                                         shuffle=False, num_workers=2)
+                                         shuffle=False)
 
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
 
-criterion = nn.CrossEntropyLoss()
+loss = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=learning_rate,
                       momentum=options.momentum, weight_decay=options.weight_decay)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=options.step_size, gamma=0.1)
@@ -103,8 +103,11 @@ count = 0
 total_loss_train, total_loss_test = [],[]
 total_acc_train, total_acc_test = [],[]
 
+train_start = time.clock()
+
 for epoch in range(n_epochs):
 
+    epoch_start = time.clock()
     model.train()
     train_loss_epoch = 0.
     train_acc_epoch = 0.
@@ -162,7 +165,7 @@ for epoch in range(n_epochs):
 
     print('For epoch %i train acc is %f'%(epoch,total_acc_train[-1]))
     print('For epoch %i test acc is %f'%(epoch,total_acc_test[-1]))
-    print('----------------')
+    
 
     # Early stopping
     if total_loss_test[-1]>total_loss_test[-2]:
@@ -174,6 +177,11 @@ for epoch in range(n_epochs):
             break
     else:
         torch.save(model.state_dict(),'checkpoints/cornetZ_%i_%s.pth'%(epoch,options.date))
+
+    print('Time taken for this epoch: %0.2f'%(time.clock()-epoch_start))
+    print('----------------')
+
+print('Total time for training+testing: %0.2f'%(train_start-time.clock()))
 
 #Plotting the train and test loss and acc
 plt.plot(total_loss_train,label='train loss')
