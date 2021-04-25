@@ -111,7 +111,7 @@ class CORnet_Z(nn.Module):
                 out_size = self.sizes[earlier_region_name]['input'][-2:]
                 feedback = torch.cat([nn.Upsample(size=out_size)(output[region_name]) for region_name in input_region_names], 1)
                 
-                output[earlier_region_name] = self.regions[target_region_name](self.feedback[earlier_region_name](feedback))
+                output[target_region_name] = self.regions[target_region_name](self.feedback[earlier_region_name](feedback))
 
             output = output[list(self.regions.keys())[-1]]
 
