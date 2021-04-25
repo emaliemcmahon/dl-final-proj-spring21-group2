@@ -17,7 +17,7 @@ class Flatten(nn.Module):
 class CORblock_Z(nn.Module):
 
     """
-    CORblock_Z is "computational region" analagous to a region of the visual cortex and performs some canonical computations: convolution, nonlinearity, and pooling
+    CORblock_Z is a "computational region" analagous to a region of the visual cortex and performs some canonical computations: convolution, nonlinearity, and pooling
     """
     
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1):
@@ -36,12 +36,11 @@ class CORblock_Z(nn.Module):
 class CORnet_Z(nn.Module):
 
     """
-    CORnet_Z is a computational model of the visual cortex
+    CORnet_Z is a computational model of the visual cortex comprising multiple CORblock_Z modules
     """
 
-    def __init__(self, pretrained=False, feedback_connections='all'):
+    def __init__(self, pretrained=False, feedback_connections='all', n_classes=10):
         super().__init__()
-        
         self.regions = nn.ModuleDict({
             'V1': CORblock_Z(3, 64, kernel_size=7, stride=2),
             'V2': CORblock_Z(64, 128),
@@ -51,16 +50,16 @@ class CORnet_Z(nn.Module):
         self.decoder = nn.Sequential(OrderedDict([
             ('avgpool', nn.AdaptiveAvgPool2d(1)),
             ('flatten', Flatten()),
-            ('linear', nn.Linear(512, 1000)),
+            ('linear', nn.Linear(512, n_classes)),
         ]))
         
-        self.input_size = (1, 3, 224, 224)  # TODO: check this input size
+        self.input_size = (1, 3, 224, 224)
         self.sizes = self.get_sizes()  # get sizes of input and output for each region
 
         if feedback_connections is None:  # vanilla CORnet-Z
             self.feedback_connections = {}
         elif feedback_connections == 'all':  # all possible feedback connections
-            self.feedback_connections = {  # the output of the key region is combined with the outputs of the value regions
+            self.feedback_connections = {  # the output of the `key` region is combined with the outputs of the `value` regions
                 'input': ['V1', 'V2', 'V4', 'IT'],
                 'V1': ['V2', 'V4', 'IT'],
                 'V2': ['V4', 'IT'],
@@ -72,19 +71,19 @@ class CORnet_Z(nn.Module):
         self.feedback = self.create_feedback_layers()
 
         # initialization
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
         if pretrained:
-            # TODO add pretrained weight initialization
-            print('need to implement initializing with pretrained weights')
-        else:
-            for group in [self.regions, self.decoder, self.feedback]:
-                for m in group.modules():
-                    if isinstance(m, (nn.Conv2d, nn.Linear)):
-                        nn.init.xavier_uniform_(m.weight)
-                        if m.bias is not None:
-                            nn.init.constant_(m.bias, 0)
-                    elif isinstance(m, nn.BatchNorm2d):
-                        m.weight.data.fill_(1)
-                        m.bias.data.zero_()
+            weights = torch.load('cornet_z-5c427c9c.pth')  # CORnet-Z (no feedback) trained on ImageNet
+            for region_name in self.regions.keys():  # weights and biases only loaded for V1, V2, V4, IT
+                self.regions[region_name].conv.weight = weights['state_dict']['module.' + region_name + '.conv.weight']
+                self.regions[region_name].conv.bias = weights['state_dict']['module.' + region_name + '.conv.bias']
 
     def create_feedback_layers(self):
         feedback = {}
@@ -138,7 +137,7 @@ class CORnet_Z(nn.Module):
         input_size = self.input_size
         outputs = self.feedforward(torch.rand(input_size), return_intermediate_output=True)
         sizes = {}
-        for i_region, region_name in enumerate(list(outputs.keys())):
+        for region_name in list(outputs.keys()):
             sizes[region_name] = {
                 'input': input_size,
                 'output': outputs[region_name].size(),
