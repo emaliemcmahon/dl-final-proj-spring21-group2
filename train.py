@@ -3,7 +3,7 @@
 # Name: train.py
 # Training loop for CORnet on CIFAR-10
 
-#from Raj.py import  *
+from cornet import CORnet_Z
 
 import os, argparse, time, glob, pickle, subprocess, shlex, io, pprint
 
@@ -84,7 +84,7 @@ optimizer = optim.SGD(net.parameters(), lr=learning_rate,
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=options.step_size, gamma=0.1)
 
 # Check with Raj about the model inputs and name
-model = CORnet_Z(pretrained=True)
+model = CORnet_Z(pretrained=True, feedback_connections='all')
 if gpu:
   model.cuda()
 
