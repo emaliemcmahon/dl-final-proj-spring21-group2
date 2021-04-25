@@ -3,7 +3,7 @@
 # Name: train.py
 # Training loop for CORnet on CIFAR-10
 
-#from Raj.py import  *
+from cornet import CORnet_Z
 
 import os, argparse, time, glob, pickle, subprocess, shlex, io, pprint
 
@@ -84,11 +84,11 @@ optimizer = optim.SGD(net.parameters(), lr=learning_rate,
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=options.step_size, gamma=0.1)
 
 # Check with Raj about the model inputs and name
-model = CORnet_Z(pretrained=True)
+model = CORnet_Z(pretrained=True, feedback_connections='all')
 if gpu:
   model.cuda()
-
-# weight initialization
+'''
+# weight initialization -> Already done in cornet.py
 for m in model.modules():
     if isinstance(m, (nn.Conv2d, nn.Linear)):
         nn.init.xavier_uniform_(m.weight)
@@ -97,7 +97,7 @@ for m in model.modules():
     elif isinstance(m, nn.BatchNorm2d):
         m.weight.data.fill_(1)
         m.bias.data.zero_()
-
+'''
 # Save the train and test loss at each epoch
 # Save the train and test accuracy at each epoch
 # Save the model at each epoch
