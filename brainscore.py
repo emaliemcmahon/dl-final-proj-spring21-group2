@@ -8,6 +8,7 @@ from model_tools.brain_transformation import ModelCommitment
 
 # to use, make sure have brainscore downloaded: pip install git+https://github.com/brain-score/brain-score 
 # to use result caching, make sure have downloaded: pip install git+https://github.com/mschrimpf/result_caching
+# to use model_tools, download library: pip install "candidate_models @ git+https://github.com/brain-score/candidate_models"
 
 # uncomment next line for result caching
 #@store()
