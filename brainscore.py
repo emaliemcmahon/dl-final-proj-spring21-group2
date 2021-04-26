@@ -22,6 +22,7 @@ def score_on_benchmark(model):
     # map layers onto cortical regions using standard commitments
     model = ModelCommitment(identifier='my-model', activations_model=activations_model,
                         # specify layers to consider
+                        #TODO figure out which layers we want
                         layers=['conv1', 'relu1', 'relu2'])
 
     # score activation model on given benchmark 
@@ -37,5 +38,3 @@ def score_on_benchmark(model):
     print(f"score: {center.values:.3f}+-{error.values:.3f}")
     """
     return score
-
-
