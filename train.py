@@ -4,7 +4,7 @@
 # Training loop for CORnet on CIFAR-10
 
 import os, argparse, time, glob, pickle, subprocess, shlex, io, pprint
-
+from datetime import datetime
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -19,8 +19,6 @@ torch.manual_seed(0)
 gpu = torch.cuda.is_available()
 
 parser = argparse.ArgumentParser(description='CIFAR10 Training')
-parser.add_argument('-date', '--date', default=None,
-                    help='Enter the date for naming checkpoints and plots')
 parser.add_argument('-model','--model_name', default='CORnet_Z', type=str,
                     help='the name of the model to train')
 parser.add_argument('-epochs','--n_epochs', default=50, type=int,
@@ -37,6 +35,10 @@ parser.add_argument('-decay','--weight_decay', default=1e-4, type=float,
 parser.add_argument('-patience','--early_stop_patience', default=3, type=int,
                     help='no. of epochs patience for early stopping ')
 args = parser.parse_args()
+
+now = datetime.now()
+date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
+print(date)
 
 print('==> Preparing data..')
 
@@ -182,7 +184,7 @@ for epoch in range(n_epochs):
             print("Stopping early bec loss has not decreased for last %i epochs"%(early_stop))
             break
     else:
-        torch.save(model.state_dict(),'checkpoints/cornetZ_%i_%s.pth'%(epoch,args.date))
+        torch.save(model.state_dict(),'checkpoints/cornetZ_%i_%s.pth'%(epoch,date))
 
     print('Time taken for this epoch: %0.2f'%(time.clock()-epoch_start))
     print('----------------')
@@ -195,7 +197,7 @@ plt.plot(total_loss_test,label='test loss')
 plt.title('CORnet-Z loss- training and testing')
 plt.xlabel('no. of epochs')
 plt.legend()
-plt.savefig('plots/cornetZ_loss_%s.png'%(args.date))
+plt.savefig('plots/cornetZ_loss_%s.png'%(date))
 plt.close()
 
 plt.plot(total_acc_train,label='train acc')
@@ -203,5 +205,5 @@ plt.plot(total_acc_test,label='test acc')
 plt.title('CORnet-Z accuracy- training and testing')
 plt.xlabel('no. of epochs')
 plt.legend()
-plt.savefig('plots/cornetZ_acc_%s.png'%(args.date))
+plt.savefig('plots/cornetZ_acc_%s.png'%(date))
 plt.close()
