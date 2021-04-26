@@ -142,6 +142,7 @@ for epoch in range(n_epochs):
         _, predicted = torch.max(output_batch.data, 1)
         train_total += label_batch.size(0)
         train_acc_epoch += (predicted.float() == label_batch.float()).sum()
+        print('For epoch %i, batch %i train loss is %f'%(epoch, i, train_loss_batch.float()))
 
     total_loss_train.append(train_loss_epoch/train_total)
     total_acc_train.append(train_acc_epoch/train_total)
