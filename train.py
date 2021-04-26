@@ -17,6 +17,7 @@ np.random.seed(0)
 torch.manual_seed(0)
 
 gpu = torch.cuda.is_available()
+print(f'cuda is available: {gpu}')
 
 parser = argparse.ArgumentParser(description='CIFAR10 Training')
 parser.add_argument('-model','--model_name', default='CORnet_Z', type=str,
@@ -38,7 +39,7 @@ args = parser.parse_args()
 
 now = datetime.now()
 date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
-print(date)
+print('date: %s'%(date))
 
 print('==> Preparing data..')
 
@@ -81,7 +82,7 @@ classes = ('plane', 'car', 'bird', 'cat',
 
 
 # Check with Raj about the model inputs and name
-print(args.model_name)
+print(f'model: {args.model_name}')
 if args.model_name == 'CORnet_Z':
     from cornet import CORnet_Z
     model = CORnet_Z(pretrained=True, feedback_connections='all')
