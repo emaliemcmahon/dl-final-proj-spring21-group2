@@ -79,11 +79,13 @@ class CORnet_Z(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
-        if pretrained:
-            weights = torch.load('cornet_z-5c427c9c.pth')  # CORnet-Z (no feedback) trained on ImageNet
+        if pretrained:   # CORnet-Z (no feedback) trained on ImageNet
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            device = torch.device(device)
+            weights = torch.load('cornet_z-5c427c9c.pth', map_location=device)
             for region_name in self.regions.keys():  # weights and biases only loaded for V1, V2, V4, IT
-                self.regions[region_name].conv.weight = weights['state_dict']['module.' + region_name + '.conv.weight']
-                self.regions[region_name].conv.bias = weights['state_dict']['module.' + region_name + '.conv.bias']
+                self.regions[region_name].conv.weight = nn.Parameter(weights['state_dict']['module.' + region_name + '.conv.weight'])
+                self.regions[region_name].conv.bias = nn.Parameter(weights['state_dict']['module.' + region_name + '.conv.bias'])
 
     def create_feedback_layers(self):
         feedback = {}
@@ -145,6 +147,9 @@ class CORnet_Z(nn.Module):
             input_size = sizes[region_name]['output']
         return sizes
 
+
+model = CORnet_Z(pretrained=True, feedback_connections='all')
+print(0)
 
 # class CORblock_S(nn.Module):
 
