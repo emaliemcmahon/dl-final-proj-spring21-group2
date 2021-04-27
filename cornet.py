@@ -89,23 +89,33 @@ class CORblock_S(nn.Module):
         return x
 
 
-class CORnet_Z(nn.Module):
+class CORnet(nn.Module):
 
     """
-    CORnet_Z is a computational model of the visual cortex comprising multiple CORblock_Z modules
+    CORnet is a computational model of the visual cortex comprising multiple CORblock_Z/CORblock_S modules
     """
 
-    def __init__(self, pretrained=False, corblock='Z', feedback_connections='all', n_classes=10):
+    def __init__(self, pretrained=False, architecture='Z', feedback_connections='all', n_classes=10):
+        """
+        if pretrained=True, parameters from ImageNet pretraining will be loaded for all layers except the decoder
+        architecture can be 'Z' or 'S' for CORnet-Z and CORnet-S respectively
+        feedback connections can be {}, 'all', or a custom dictionary
+        n_classes can be any integer corresponding to the number of output classes
+        """
         super().__init__()
 
-        if corblock == 'Z':
+        self.architecture = architecture
+
+        # convolutional architecture
+        if self.architecture == 'Z':  # CORnet-Z
             self.regions = nn.ModuleDict({
                 'V1': CORblock_Z(3, 64, kernel_size=7, stride=2),
                 'V2': CORblock_Z(64, 128),
                 'V4': CORblock_Z(128, 256),
                 'IT': CORblock_Z(256, 512),
             })
-        elif corblock == 'S':
+            self.weights_file = 'cornet_z-5c427c9c.pth' 
+        elif self.architecture == 'S':  # CORnet-S
             self.regions = nn.ModuleDict({
                 'V1': nn.Sequential(OrderedDict([
                     ('conv1', nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)),
@@ -120,28 +130,31 @@ class CORnet_Z(nn.Module):
                 'V4': CORblock_S(128, 256, times=4),
                 'IT': CORblock_S(256, 512, times=2),
             })
+            self.weights_file = ''
+        else:
+            raise ValueError('only supports CORnet-Z (\'z\') and CORnet-S (\'s\')')
 
+        # decoder head
         self.decoder = nn.Sequential(OrderedDict([
             ('avgpool', nn.AdaptiveAvgPool2d(1)),
             ('flatten', Flatten()),
             ('linear', nn.Linear(512, n_classes)),
         ]))
         
+        # sizes of input and output for each region
         self.input_size = (1, 3, 224, 224)
-        self.sizes = self.get_sizes()  # get sizes of input and output for each region
+        self.sizes = self.get_sizes()
 
-        if feedback_connections is None:  # vanilla CORnet-Z
-            self.feedback_connections = {}
-        elif feedback_connections == 'all':  # all possible feedback connections
+        # feedback
+        if feedback_connections == 'all':  # all possible feedback connections
             self.feedback_connections = {  # the output of the `key` region is combined with the outputs of the `value` regions
                 'input': ['V1', 'V2', 'V4', 'IT'],
                 'V1': ['V2', 'V4', 'IT'],
                 'V2': ['V4', 'IT'],
                 'V4': ['IT'],
-            }            
+            }
         else:  # custom feedback connections
             self.feedback_connections = feedback_connections
-        
         self.feedback = self.create_feedback_layers()
 
         # initialization
@@ -153,15 +166,23 @@ class CORnet_Z(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
-        if pretrained:   # CORnet-Z (no feedback) trained on ImageNet
+
+        if pretrained:  # parameters from ImageNet training
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             device = torch.device(device)
-            if corblock == 'Z':
-                weights = torch.load('cornet_z-5c427c9c.pth', map_location=device)
+            weights = torch.load(self.weights_file, map_location=device)
+            
+            if self.architecture == 'Z':
                 for region_name in self.regions.keys():  # weights and biases only loaded for V1, V2, V4, IT
                     self.regions[region_name].conv.weight = nn.Parameter(weights['state_dict']['module.' + region_name + '.conv.weight'])
                     self.regions[region_name].conv.bias = nn.Parameter(weights['state_dict']['module.' + region_name + '.conv.bias'])
-            # TODO add support for loading pretrained weights for CORblock-S
+            elif self.architecture == 'S':
+                # TODO add support for loading pretrained weights for CORblock-S
+
+                print('to do')
+            else:
+                raise ValueError('only supports CORnet-Z (\'z\') and CORnet-S (\'s\')')
+            
     def create_feedback_layers(self):
         feedback = {}
         for earlier_region_name, later_region_names in self.feedback_connections.items():
@@ -221,40 +242,3 @@ class CORnet_Z(nn.Module):
             }
             input_size = sizes[region_name]['output']
         return sizes
-
-
-# def CORnet_S():
-#     model = nn.Sequential(OrderedDict([
-#         ('V1', nn.Sequential(OrderedDict([  # this one is custom to save GPU memory
-#             ('conv1', nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)),
-#             ('norm1', nn.BatchNorm2d(64)),
-#             ('nonlin1', nn.ReLU(inplace=True)),
-#             ('pool', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
-#             ('conv2', nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)),
-#             ('norm2', nn.BatchNorm2d(64)),
-#             ('nonlin2', nn.ReLU(inplace=True)),
-#             ('output', Identity())
-#         ]))),
-#         ('V2', CORblock_S(64, 128, times=2)),
-#         ('V4', CORblock_S(128, 256, times=4)),
-#         ('IT', CORblock_S(256, 512, times=2)),
-#         ('decoder', nn.Sequential(OrderedDict([
-#             ('avgpool', nn.AdaptiveAvgPool2d(1)),
-#             ('flatten', Flatten()),
-#             ('linear', nn.Linear(512, 1000)),
-#             ('output', Identity())
-#         ])))
-#     ]))
-
-#     # weight initialization
-#     for m in model.modules():
-#         if isinstance(m, nn.Conv2d):
-#             n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-#             m.weight.data.normal_(0, math.sqrt(2. / n))
-#         # nn.Linear is missing here because I originally forgot 
-#         # to add it during the training of this network
-#         elif isinstance(m, nn.BatchNorm2d):
-#             m.weight.data.fill_(1)
-#             m.bias.data.zero_()
-
-#     return model
