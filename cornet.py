@@ -17,7 +17,7 @@ class Flatten(nn.Module):
 class CORblock_Z(nn.Module):
 
     """
-    CORblock_Z is a "computational region" analagous to a region of the visual cortex and performs some canonical computations: convolution, nonlinearity, and pooling
+    CORblock_Z is a "computational region" of CORnet-Z
     """
     
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1):
@@ -34,6 +34,10 @@ class CORblock_Z(nn.Module):
 
 
 class CORblock_S(nn.Module):
+
+    """
+    CORblock_S is a "computational region" of CORnet-S
+    """
 
     scale = 4  # scale of the bottleneck convolution channels
 
@@ -95,19 +99,21 @@ class CORnet(nn.Module):
     CORnet is a computational model of the visual cortex comprising multiple CORblock_Z/CORblock_S modules
     """
 
-    def __init__(self, pretrained=False, architecture='Z', feedback_connections='all', n_classes=10):
+    def __init__(self, pretrained=False, architecture='CORnet-Z', feedback_connections='all', n_classes=10):
+        
         """
         if pretrained=True, parameters from ImageNet pretraining will be loaded for all layers except the decoder
-        architecture can be 'Z' or 'S' for CORnet-Z and CORnet-S respectively
+        architecture can be 'CORnet-Z' or 'CORnet-S'
         feedback connections can be {}, 'all', or a custom dictionary
         n_classes can be any integer corresponding to the number of output classes
         """
+        
         super().__init__()
 
         self.architecture = architecture
 
         # convolutional architecture
-        if self.architecture == 'Z':  # CORnet-Z
+        if self.architecture == 'CORnet-Z':
             self.regions = nn.ModuleDict({
                 'V1': CORblock_Z(3, 64, kernel_size=7, stride=2),
                 'V2': CORblock_Z(64, 128),
@@ -115,7 +121,7 @@ class CORnet(nn.Module):
                 'IT': CORblock_Z(256, 512),
             })
             self.weights_file = 'cornet_z-5c427c9c.pth' 
-        elif self.architecture == 'S':  # CORnet-S
+        elif self.architecture == 'CORnet-S':
             self.regions = nn.ModuleDict({
                 'V1': nn.Sequential(OrderedDict([
                     ('conv1', nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)),
@@ -130,9 +136,9 @@ class CORnet(nn.Module):
                 'V4': CORblock_S(128, 256, times=4),
                 'IT': CORblock_S(256, 512, times=2),
             })
-            self.weights_file = ''
+            self.weights_file = 'cornet_s-XXXX.pth'  # TODO update filename
         else:
-            raise ValueError('only supports CORnet-Z (\'z\') and CORnet-S (\'s\')')
+            raise ValueError('only supports \'CORnet-Z\' and \'CORnet-S\'')
 
         # decoder head
         self.decoder = nn.Sequential(OrderedDict([
@@ -172,16 +178,17 @@ class CORnet(nn.Module):
             device = torch.device(device)
             weights = torch.load(self.weights_file, map_location=device)
             
-            if self.architecture == 'Z':
+            if self.architecture == 'CORnet-Z':
                 for region_name in self.regions.keys():  # weights and biases only loaded for V1, V2, V4, IT
                     self.regions[region_name].conv.weight = nn.Parameter(weights['state_dict']['module.' + region_name + '.conv.weight'])
                     self.regions[region_name].conv.bias = nn.Parameter(weights['state_dict']['module.' + region_name + '.conv.bias'])
-            elif self.architecture == 'S':
+            elif self.architecture == 'CORnet-S':
+                self.weights_file = ''
                 # TODO add support for loading pretrained weights for CORblock-S
 
                 print('to do')
             else:
-                raise ValueError('only supports CORnet-Z (\'z\') and CORnet-S (\'s\')')
+                raise ValueError('only supports \'CORnet-Z\' and \'CORnet-S\'')
             
     def create_feedback_layers(self):
         feedback = {}

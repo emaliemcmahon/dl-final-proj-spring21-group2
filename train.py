@@ -12,12 +12,15 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
+from matplotlib import pyplot as plt
+from cornet import CORnet
 
 np.random.seed(0)
 torch.manual_seed(0)
 
-gpu = torch.cuda.is_available()
-print(f'cuda is available: {gpu}')
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f'device: {device}')
+device = torch.device(device)
 
 parser = argparse.ArgumentParser(description='CIFAR10 Training')
 parser.add_argument('-model','--model_name', default='CORnet_Z', type=str,
@@ -43,7 +46,7 @@ print('date: %s'%(date))
 
 print('==> Preparing data..')
 
-# image size = 32x32x32
+# image size = 32x32x3
 # resize image to 256x256x3 to match ImageNet image size for pretrained CORnet-Z
 # Modify mean and stdev to ImageNet mean and stdev
 # CIFAR-10 : transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
@@ -61,7 +64,7 @@ transform_test = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-#hyperparameters based on the CORnet paper
+# hyperparameters based on the CORnet paper
 batch_size = args.batch_size
 n_epochs = args.n_epochs
 early_stop = args.early_stop_patience
@@ -81,30 +84,15 @@ classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
 
-# Check with Raj about the model inputs and name
+# load model
 print(f'model: {args.model_name}')
-if args.model_name == 'CORnet_Z':
-    from cornet import CORnet_Z
-    model = CORnet_Z(pretrained=True, feedback_connections='all')
-
-if gpu:
-  model.cuda()
+model = CORnet(pretrained=True, architecture=args.model_name, feedback_connections='all', n_classes=10).to(device)
 
 loss = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=learning_rate,
                    momentum=args.momentum, weight_decay=args.weight_decay)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.1)
-'''
-# weight initialization -> Already done in cornet.py
-for m in model.modules():
-    if isinstance(m, (nn.Conv2d, nn.Linear)):
-        nn.init.xavier_uniform_(m.weight)
-        if m.bias is not None:
-            nn.init.constant_(m.bias, 0)
-    elif isinstance(m, nn.BatchNorm2d):
-        m.weight.data.fill_(1)
-        m.bias.data.zero_()
-'''
+
 # Save the train and test loss at each epoch
 # Save the train and test accuracy at each epoch
 # Save the model at each epoch
@@ -127,19 +115,19 @@ for epoch in range(n_epochs):
 
     for i, (input_batch, label_batch) in enumerate(trainloader,0):
         print(input_batch.size)
-        if gpu:
-            input_batch = input_batch.cuda()
-            label_batch = label_batch.cuda()
+        input_batch = input_batch.to(device)
+        label_batch = label_batch.to(device)
 
-        output_batch = model(input_batch) #this may change based on Raj's implementation
+        output_batch = model(input_batch)
         train_loss_batch = loss(output_batch,label_batch)
 
         optimizer.zero_grad()
         train_loss_batch.backward()
         optimizer.step()
 
-        train_loss_epoch+=train_loss_batch.item()
-        #calculate accuracy
+        train_loss_epoch += train_loss_batch.item()
+        
+        # calculate accuracy
         _, predicted = torch.max(output_batch.data, 1)
         train_total += label_batch.size(0)
         train_acc_epoch += (predicted.float() == label_batch.float()).sum()
@@ -154,15 +142,15 @@ for epoch in range(n_epochs):
     test_correct = 0
     test_total = 0
 
-    for k, (input_batch, label_batch) in enumerate(testloader,0):
-        if gpu:
-            input_batch = input_batch.cuda()
-            label_batch = label_batch.cuda()
+    for k, (input_batch, label_batch) in enumerate(testloader, 0):
+        input_batch = input_batch.to(device)
+        label_batch = label_batch.to(device)
 
-        output_batch = model(input_batch) #this may change based on Raj's implementation
+        output_batch = model(input_batch)
         test_loss_batch = loss(output_batch,label_batch)
         test_loss_epoch+=test_loss_batch.item()
-        #calculate accuracy
+
+        # calculate accuracy
         _, predicted = torch.max(output_batch.data, 1)
         test_total += label_batch.size(0)
         test_acc_epoch += (predicted.float() == label_batch.float()).sum()
@@ -176,8 +164,7 @@ for epoch in range(n_epochs):
     print('For epoch %i train acc is %f'%(epoch,total_acc_train[-1]))
     print('For epoch %i test acc is %f'%(epoch,total_acc_test[-1]))
 
-
-    # Early stopping
+    # early stopping
     if total_loss_test[-1]>total_loss_test[-2]:
         if count < early_stop:
             count+=1
@@ -188,24 +175,25 @@ for epoch in range(n_epochs):
     else:
         torch.save(model.state_dict(),'checkpoints/cornetZ_%i_%s.pth'%(epoch,date))
 
-    print('Time taken for this epoch: %0.2f'%(time.clock()-epoch_start))
+    print('Time taken for this epoch: %0.2f'%(time.clock() - epoch_start))
     print('----------------')
 
-print('Total time for training+testing: %0.2f'%(train_start-time.clock()))
+print('Total time for training+testing: %0.2f'%(train_start - time.clock()))
 
-#Plotting the train and test loss and acc
+
+# plotting the train and test loss and acc
 plt.plot(total_loss_train,label='train loss')
 plt.plot(total_loss_test,label='test loss')
-plt.title('CORnet-Z loss- training and testing')
+plt.title(args.model_name + ' loss- training and testing')
 plt.xlabel('no. of epochs')
 plt.legend()
-plt.savefig('plots/cornetZ_loss_%s.png'%(date))
+plt.savefig('plots/' + args.model_name + '_loss_%s.png'%(date))
 plt.close()
 
 plt.plot(total_acc_train,label='train acc')
 plt.plot(total_acc_test,label='test acc')
-plt.title('CORnet-Z accuracy- training and testing')
+plt.title(args.model_name + ' accuracy- training and testing')
 plt.xlabel('no. of epochs')
 plt.legend()
-plt.savefig('plots/cornetZ_acc_%s.png'%(date))
+plt.savefig('plots/' + args.model_name + '_acc_%s.png'%(date))
 plt.close()
