@@ -23,11 +23,13 @@ print(f'device: {device}')
 device = torch.device(device)
 
 parser = argparse.ArgumentParser(description='CIFAR10 Training')
-parser.add_argument('-model','--model_name', default='CORnet_Z', type=str,
+parser.add_argument('-model','--model_name', default='CORnet-Z', type=str,
                     help='the name of the model to train')
+parser.add_argument('-feedback_connections','--feedback_connections', default={}, type=str,
+                    help='whether the model has feedback connections')
 parser.add_argument('-epochs','--n_epochs', default=50, type=int,
                     help='number of total epochs to run')
-parser.add_argument('-batch_size','--batch_size', default=128, type=int,
+parser.add_argument('-batch_size','--batch_size', default=32, type=int,
                     help='batch size')
 parser.add_argument('-lr', '--learning_rate', default=.1, type=float,
                     help='initial learning rate')
@@ -86,7 +88,8 @@ classes = ('plane', 'car', 'bird', 'cat',
 
 # load model
 print(f'model: {args.model_name}')
-model = CORnet(pretrained=True, architecture=args.model_name, feedback_connections='all', n_classes=10).to(device)
+model = CORnet(pretrained=True, architecture=args.model_name,
+            feedback_connections=args.feedback_connections, n_classes=10).to(device)
 
 loss = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=learning_rate,
@@ -126,7 +129,7 @@ for epoch in range(n_epochs):
         optimizer.step()
 
         train_loss_epoch += train_loss_batch.item()
-        
+
         # calculate accuracy
         _, predicted = torch.max(output_batch.data, 1)
         train_total += label_batch.size(0)
