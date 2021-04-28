@@ -121,7 +121,7 @@ for epoch in range(n_epochs):
     train_correct = 0
     train_total = 0
 
-    for i, (input_batch, label_batch) in tqdm(enumerate(trainloader,0), total=round(len(trainset)/batch_size)):
+    for i, (input_batch, label_batch) in tqdm(enumerate(trainloader,0), total=round(len(trainset)/batch_size), position=0, leave=True):
         input_batch = input_batch.to(device)
         label_batch = label_batch.to(device)
 
@@ -173,7 +173,7 @@ for epoch in range(n_epochs):
     print('For epoch %i test acc is %f'%(epoch,total_acc_test[-1]))
 
     # early stopping
-    if total_loss_test[-1]>total_loss_test[-2]:
+    if epoch>1 and total_loss_test[-1]>total_loss_test[-2]:
         if count < early_stop:
             count+=1
         else:
