@@ -120,7 +120,7 @@ for epoch in range(n_epochs):
     train_correct = 0
     train_total = 0
 
-    for i, (input_batch, label_batch) in tqdm(enumerate(trainloader,0), total=len(trainloader.dataset)):
+    for i, (input_batch, label_batch) in tqdm(enumerate(trainloader,0), total=round(len(trainset)/batch_size)):
         input_batch = input_batch.to(device)
         label_batch = label_batch.to(device)
 
