@@ -3,7 +3,8 @@
 # Name: train.py
 # Training loop for CORnet on CIFAR-10
 
-import os, argparse, time, glob, pickle, subprocess, shlex, io, pprint, tqdm
+import os, argparse, time, glob, pickle, subprocess, shlex, io, pprint
+from tqdm import tqdm
 from datetime import datetime
 import torch
 import torchvision
