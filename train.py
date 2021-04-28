@@ -3,7 +3,7 @@
 # Name: train.py
 # Training loop for CORnet on CIFAR-10
 
-import os, argparse, time, glob, pickle, subprocess, shlex, io, pprint
+import os, argparse, time, glob, pickle, subprocess, shlex, io, pprint, tqdm
 from datetime import datetime
 import torch
 import torchvision
@@ -31,13 +31,15 @@ parser.add_argument('-epochs','--n_epochs', default=50, type=int,
                     help='number of total epochs to run')
 parser.add_argument('-batch_size','--batch_size', default=32, type=int,
                     help='batch size')
-parser.add_argument('-lr', '--learning_rate', default=.1, type=float,
+parser.add_argument('-lr', '--learning_rate', default=.001, type=float,
                     help='initial learning rate')
 parser.add_argument('-step','--step_size', default=10, type=int,
                     help='after how many epochs learning rate should be decreased 10x')
 parser.add_argument('-momentum','--momentum', default=.9, type=float, help='momentum')
 parser.add_argument('-decay','--weight_decay', default=1e-4, type=float,
                     help='weight decay ')
+parser.add_argument('-gamma','--gamma', default=0.1, type=float,
+                    help='scheduler multiplication factor')
 parser.add_argument('-patience','--early_stop_patience', default=3, type=int,
                     help='no. of epochs patience for early stopping ')
 args = parser.parse_args()
@@ -45,6 +47,8 @@ args = parser.parse_args()
 now = datetime.now()
 date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
 print('date: %s'%(date))
+print(f'model: {args.model_name}')
+print(f'feedback: {args.feedback_connections}')
 
 print('==> Preparing data..')
 
@@ -71,6 +75,7 @@ batch_size = args.batch_size
 n_epochs = args.n_epochs
 early_stop = args.early_stop_patience
 learning_rate = args.learning_rate
+gamma = args.gamma
 
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
                                         download=True, transform=transform_train)
@@ -87,14 +92,13 @@ classes = ('plane', 'car', 'bird', 'cat',
 
 
 # load model
-print(f'model: {args.model_name}')
 model = CORnet(pretrained=True, architecture=args.model_name,
             feedback_connections=args.feedback_connections, n_classes=10).to(device)
 
 loss = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=learning_rate,
                    momentum=args.momentum, weight_decay=args.weight_decay)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.1)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=gamma)
 
 # Save the train and test loss at each epoch
 # Save the train and test accuracy at each epoch
@@ -116,8 +120,7 @@ for epoch in range(n_epochs):
     train_correct = 0
     train_total = 0
 
-    for i, (input_batch, label_batch) in enumerate(trainloader,0):
-        print(input_batch.size)
+    for i, (input_batch, label_batch) in tqdm(enumerate(trainloader,0), total=len(trainloader.dataset)):
         input_batch = input_batch.to(device)
         label_batch = label_batch.to(device)
 
@@ -134,7 +137,8 @@ for epoch in range(n_epochs):
         _, predicted = torch.max(output_batch.data, 1)
         train_total += label_batch.size(0)
         train_acc_epoch += (predicted.float() == label_batch.float()).sum()
-        print('For epoch %i, batch %i train loss is %f'%(epoch, i, train_loss_batch.float()))
+        if i % 150 == 0:
+            print('For epoch %i, batch %i train loss is %f'%(epoch, i, train_loss_batch.float()))
 
     total_loss_train.append(train_loss_epoch/train_total)
     total_acc_train.append(train_acc_epoch/train_total)
