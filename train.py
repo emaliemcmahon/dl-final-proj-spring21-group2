@@ -93,15 +93,7 @@ classes = ('plane', 'car', 'bird', 'cat',
 
 
 # load model
-feedback_connections = {
-    'IT': ('V1', 'V2', 'V4', 'IT'),
-    'V4': ('V1', 'V2', 'V4'),
-    'V2': ('V1', 'V2'),
-    'V1': ('V1',),
-}
-
-model = CORnet(pretrained=True, architecture=args.model_name,
-            feedback_connections=args.feedback_connections, n_classes=10).to(device)
+model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10).to(device)
 scaler = torch.cuda.amp.GradScaler()
 loss = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=learning_rate,

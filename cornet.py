@@ -118,6 +118,14 @@ class CORnet(nn.Module):
         self.architecture = architecture
         self.n_classes = n_classes
         self.pretrained = pretrained
+
+        if feedback_connections == 'all':
+            feedback_connections = {
+                'V1': ('V1',),
+                'V2': ('V1', 'V2'),
+                'V4': ('V1', 'V2', 'V4'),
+                'IT': ('V1', 'V2', 'V4', 'IT'),
+            }
         self.feedback_connections = feedback_connections
         self.inverted_feedback_connections = invert_dictionary(feedback_connections)
         self.n_passes = n_passes
@@ -263,12 +271,13 @@ class CORnet(nn.Module):
 
 
 # feedback_connections = {
-#     'IT': ('V1', 'V2', 'V4', 'IT'),
-#     'V4': ('V1', 'V2', 'V4'),
-#     'V2': ('V1', 'V2'),
 #     'V1': ('V1',),
+#     'V2': ('V1', 'V2'),
+#     'V4': ('V1', 'V2', 'V4'),
+#     'IT': ('V1', 'V2', 'V4', 'IT'),
 # }
 
-# model = CORnet(architecture='CORnet-Z', feedback_connections=feedback_connections)
-# print(model(torch.rand(16, 3, 224, 224)))
-# print(1)
+# torch.manual_seed(0)
+# with torch.no_grad():
+#     model = CORnet(architecture='CORnet-Z', n_classes=10, feedback_connections=feedback_connections, pretrained=True, n_passes=1)
+#     print(model(torch.rand(1, 3, 224, 224)))
