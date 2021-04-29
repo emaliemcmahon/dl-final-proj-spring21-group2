@@ -251,7 +251,7 @@ class CORnet(nn.Module):
                     activation[receiver_name] = self.areas[receiver_name](self.feedback[receiver_name](feedback))
             activation = activation[self.sequence[-1]]
         else:
-            activation = self.feedforward(image, activations_to_return=self.feedback_connections.keys())
+            activation = self.feedforward(image, activations_to_return=())
         activation = self.decoder(activation)
         return activation
 
