@@ -4,7 +4,6 @@
 # Training loop for CORnet on CIFAR-10
 
 import argparse
-import time
 from tqdm import tqdm
 from datetime import datetime
 import torch
@@ -16,196 +15,188 @@ import numpy as np
 from matplotlib import pyplot as plt
 from cornet import CORnet
 
-np.random.seed(0)
-torch.manual_seed(0)
+def load_data(args):
+    print('==> Preparing data..')
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print(f'device: {device}')
-device = torch.device(device)
+    # image size = 32x32x3
+    # resize image to 256x256x3 to match ImageNet image size for pretrained CORnet-Z
+    # Modify mean and stdev to ImageNet mean and stdev
+    # CIFAR-10 : transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+    transform_train = transforms.Compose([
+        transforms.Resize(256),
+        transforms.RandomCrop(224),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
 
-parser = argparse.ArgumentParser(description='CIFAR10 Training')
-parser.add_argument('-model', '--model_name', default='CORnet-Z', type=str,
-                    help='the name of the model to train')
-parser.add_argument('-feedback_connections', '--feedback_connections', default={}, type=str,
-                    help='whether the model has feedback connections')
-parser.add_argument('-epochs', '--n_epochs', default=50, type=int,
-                    help='number of total epochs to run')
-parser.add_argument('-batch_size', '--batch_size', default=32, type=int,
-                    help='batch size')
-parser.add_argument('-lr', '--learning_rate', default=.001, type=float,
-                    help='initial learning rate')
-parser.add_argument('-step', '--step_size', default=10, type=int,
-                    help='after how many epochs learning rate should be decreased 10x')
-parser.add_argument('-momentum', '--momentum', default=.9, type=float, help='momentum')
-parser.add_argument('-decay', '--weight_decay', default=1e-4, type=float,
-                    help='weight decay ')
-parser.add_argument('-gamma', '--gamma', default=0.1, type=float,
-                    help='scheduler multiplication factor')
-parser.add_argument('-patience', '--early_stop_patience', default=3, type=int,
-                    help='no. of epochs patience for early stopping ')
-args = parser.parse_args()
+    transform_test = transforms.Compose([
+        transforms.Resize(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
 
-now = datetime.now()
-date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
-print('date: %s' % (date))
-print(f'model: {args.model_name}')
-print(f'feedback: {args.feedback_connections}')
+    trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
+                                            download=True, transform=transform_train)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size,
+                                              shuffle=True)
 
-print('==> Preparing data..')
-
-# image size = 32x32x3
-# resize image to 256x256x3 to match ImageNet image size for pretrained CORnet-Z
-# Modify mean and stdev to ImageNet mean and stdev
-# CIFAR-10 : transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
-transform_train = transforms.Compose([
-    transforms.Resize(256),
-    transforms.RandomCrop(224),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
-
-transform_test = transforms.Compose([
-    transforms.Resize(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
-
-# hyperparameters based on the CORnet paper
-batch_size = args.batch_size
-n_epochs = args.n_epochs
-early_stop = args.early_stop_patience
-learning_rate = args.learning_rate
-gamma = args.gamma
-
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                        download=True, transform=transform_train)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                          shuffle=True)
-
-testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                       download=True, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
-                                         shuffle=False)
-
-classes = ('plane', 'car', 'bird', 'cat',
-           'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+    testset = torchvision.datasets.CIFAR10(root='./data', train=False,
+                                           download=True, transform=transform_test)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size,
+                                             shuffle=False)
+    return trainloader, int(len(trainset)/args.batch_size), testloader
 
 
-# load model
-model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10).to(device)
-scaler = torch.cuda.amp.GradScaler()
-loss = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=gamma)
+def load_model(device, args):
+    # load model
+    model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10).to(device)
+    scaler = torch.cuda.amp.GradScaler()
+    loss = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
+    return model, scaler, loss, optimizer, scheduler
 
-# Save the train and test loss at each epoch
-# Save the train and test accuracy at each epoch
-# Save the model at each epoch
-# Implement early stopping
+def train(device, args, trainloader, n_batches, testloader, model, scaler, loss, optimizer, scheduler):
+    # Save the train and test loss at each epoch
+    # Save the train and test accuracy at each epoch
+    # Save the model at each epoch
+    # Implement early stopping
+    classes = ('plane', 'car', 'bird', 'cat',
+               'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+    count = 0
+    total_loss_train, total_loss_test = [], []
+    total_acc_train, total_acc_test = [], []
 
-count = 0
-total_loss_train, total_loss_test = [], []
-total_acc_train, total_acc_test = [], []
+    for epoch in range(args.n_epochs):
 
-train_start = time.clock()
+        model.train()
+        train_loss_epoch = 0.
+        train_acc_epoch = 0.
+        train_correct = 0
+        train_total = 0
 
-for epoch in range(n_epochs):
-
-    epoch_start = time.clock()
-    model.train()
-    train_loss_epoch = 0.
-    train_acc_epoch = 0.
-    train_correct = 0
-    train_total = 0
-
-    for i, (input_batch, label_batch) in tqdm(enumerate(trainloader, 0), total=round(len(trainset)/batch_size), position=0, leave=True):
-        input_batch = input_batch.to(device)
-        label_batch = label_batch.to(device)
-
-        optimizer.zero_grad(set_to_none=True)
-
-        with torch.cuda.amp.autocast():
-            output_batch = model(input_batch)
-            train_loss_batch = loss(output_batch, label_batch)
-
-        scaler.scale(train_loss_batch).backward()
-        scaler.step(optimizer)
-        scaler.update()
-
-        train_loss_epoch += train_loss_batch.item()
-
-        # calculate accuracy
-        _, predicted = torch.max(output_batch.data, 1)
-        train_total += label_batch.size(0)
-        train_acc_epoch += (predicted.float() == label_batch.float()).sum()
-        if i % 150 == 0:
-            print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
-
-    total_loss_train.append(train_loss_epoch/train_total)
-    total_acc_train.append(train_acc_epoch/train_total)
-
-    model.eval()
-    test_loss_epoch = 0.
-    test_acc_epoch = 0.
-    test_correct = 0
-    test_total = 0
-
-    with torch.no_grad():
-        for k, (input_batch, label_batch) in enumerate(testloader, 0):
+        for i, (input_batch, label_batch) in tqdm(enumerate(trainloader, 0), total=n_batches, position=0, leave=True):
             input_batch = input_batch.to(device)
             label_batch = label_batch.to(device)
 
+            optimizer.zero_grad(set_to_none=True)
+
             with torch.cuda.amp.autocast():
                 output_batch = model(input_batch)
-                test_loss_batch = loss(output_batch, label_batch)
+                train_loss_batch = loss(output_batch, label_batch)
 
-            test_loss_epoch += test_loss_batch.item()
+            scaler.scale(train_loss_batch).backward()
+            scaler.step(optimizer)
+            scaler.update()
+
+            train_loss_epoch += train_loss_batch.item()
 
             # calculate accuracy
             _, predicted = torch.max(output_batch.data, 1)
-            test_total += label_batch.size(0)
-            test_acc_epoch += (predicted.float() == label_batch.float()).sum()
+            train_total += label_batch.size(0)
+            train_acc_epoch += (predicted.float() == label_batch.float()).sum()
+            if i == 0 or i % 150 == 0 or i == (n_batches-1):
+                print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
+                true_class = classes[torch.argmax(label_batch)]
+                print(f'True class: {true_class}')
+                predicted_class = classes[torch.argmax(output_batch[0,:])]
+                print(f'Predicted class: {predicted_class}')
 
-    total_loss_test.append(float(test_loss_epoch/test_total))
-    total_acc_test.append(float(test_acc_epoch/test_total))
+        total_loss_train.append(train_loss_epoch/train_total)
+        total_acc_train.append(train_acc_epoch/train_total)
 
-    print('For epoch %i train loss is %f' % (epoch, total_loss_train[-1]))
-    print('For epoch %i test loss is %f' % (epoch, total_loss_test[-1]))
+        model.eval()
+        test_loss_epoch = 0.
+        test_acc_epoch = 0.
+        test_correct = 0
+        test_total = 0
 
-    print('For epoch %i train acc is %f' % (epoch, total_acc_train[-1]))
-    print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
+        with torch.no_grad():
+            for k, (input_batch, label_batch) in enumerate(testloader, 0):
+                input_batch = input_batch.to(device)
+                label_batch = label_batch.to(device)
 
-    # early stopping
-    if epoch > 1 and total_loss_test[-1] > total_loss_test[-2]:
-        if count < early_stop:
-            count += 1
+                with torch.cuda.amp.autocast():
+                    output_batch = model(input_batch)
+                    test_loss_batch = loss(output_batch, label_batch)
+
+                test_loss_epoch += test_loss_batch.item()
+
+                # calculate accuracy
+                _, predicted = torch.max(output_batch.data, 1)
+                test_total += label_batch.size(0)
+                test_acc_epoch += (predicted.float() == label_batch.float()).sum()
+
+        total_loss_test.append(float(test_loss_epoch/test_total))
+        total_acc_test.append(float(test_acc_epoch/test_total))
+
+        print('For epoch %i train loss is %f' % (epoch, total_loss_train[-1]))
+        print('For epoch %i test loss is %f' % (epoch, total_loss_test[-1]))
+
+        print('For epoch %i train acc is %f' % (epoch, total_acc_train[-1]))
+        print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
+
+        # early stopping
+        if epoch > 1 and total_loss_test[-1] > total_loss_test[-2]:
+            if count < args.early_stop_patience:
+                count += 1
+            else:
+                count = 0
+                print("Stopping early bec loss has not decreased for last %i epochs" % (early_stop))
+                break
         else:
-            count = 0
-            print("Stopping early bec loss has not decreased for last %i epochs" % (early_stop))
-            break
-    else:
-        torch.save(model.state_dict(), 'checkpoints/cornetZ_%i_%s.pth' % (epoch, date))
+            np.save(f'plots/{args.model_name}_train.npy', np.array([total_loss_train, total_acc_train]))
+            np.save(f'plots/{args.model_name}_test.npy', np.array([total_loss_test, total_acc_test]))
+            now = datetime.now()
+            date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
+            torch.save(model.state_dict(), 'checkpoints/%s_%i_%s.pth' % (args.model_name, epoch, date))
 
-    print('Time taken for this epoch: %0.2f' % (time.clock() - epoch_start))
-    print('----------------')
+def parse_args():
+    parser = argparse.ArgumentParser(description='CIFAR10 Training')
+    parser.add_argument('-model', '--model_name', default='CORnet-Z', type=str,
+                        help='the name of the model to train')
+    parser.add_argument('-feedback_connections', '--feedback_connections', default={}, type=str,
+                        help='whether the model has feedback connections')
+    parser.add_argument('-epochs', '--n_epochs', default=50, type=int,
+                        help='number of total epochs to run')
+    parser.add_argument('-batch_size', '--batch_size', default=32, type=int,
+                        help='batch size')
+    parser.add_argument('-lr', '--learning_rate', default=.001, type=float,
+                        help='initial learning rate')
+    parser.add_argument('-step', '--step_size', default=10, type=int,
+                        help='after how many epochs learning rate should be decreased 10x')
+    parser.add_argument('-momentum', '--momentum', default=.9, type=float, help='momentum')
+    parser.add_argument('-decay', '--weight_decay', default=1e-4, type=float,
+                        help='weight decay ')
+    parser.add_argument('-gamma', '--gamma', default=0.1, type=float,
+                        help='scheduler multiplication factor')
+    parser.add_argument('-patience', '--early_stop_patience', default=3, type=int,
+                        help='no. of epochs patience for early stopping ')
+    args = parser.parse_args()
 
-print('Total time for training+testing: %0.2f' % (train_start - time.clock()))
+    now = datetime.now()
+    date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
+    print('date: %s' % (date))
+    print(f'model: {args.model_name}')
+    print(f'feedback: {args.feedback_connections}')
+    print(f'batch_size: {args.batch_size}')
+    print(f'number of epochs: {args.n_epochs}')
+    return args
+
+def main():
+    np.random.seed(0)
+    torch.manual_seed(0)
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f'device: {device}')
+    device = torch.device(device)
+
+    args = parse_args()
+    trainloader, n_batches, testloader = load_data(args)
+    model, scaler, loss, optimizer, scheduler = load_model(device, args)
+    train(device, args, trainloader, n_batches, testloader, model, scaler, loss, optimizer, scheduler)
 
 
-# plotting the train and test loss and acc
-plt.plot(total_loss_train, label='train loss')
-plt.plot(total_loss_test, label='test loss')
-plt.title(args.model_name + ' loss- training and testing')
-plt.xlabel('no. of epochs')
-plt.legend()
-plt.savefig('plots/' + args.model_name + '_loss_%s.png' % (date))
-plt.close()
-
-plt.plot(total_acc_train, label='train acc')
-plt.plot(total_acc_test, label='test acc')
-plt.title(args.model_name + ' accuracy- training and testing')
-plt.xlabel('no. of epochs')
-plt.legend()
-plt.savefig('plots/' + args.model_name + '_acc_%s.png' % (date))
-plt.close()
+if __name__ == "__main__":
+    main()
