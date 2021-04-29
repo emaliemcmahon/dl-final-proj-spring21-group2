@@ -48,7 +48,7 @@ def load_data(args):
     return trainloader, int(len(trainset)/batch_size), testloader
 
 
-def load_model(device, args),
+def load_model(device, args):
     # load model
     model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10).to(device)
     scaler = torch.cuda.amp.GradScaler()
