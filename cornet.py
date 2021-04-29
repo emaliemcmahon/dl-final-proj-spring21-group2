@@ -1,4 +1,3 @@
-import math
 from collections import OrderedDict
 import torch
 from torch import nn
@@ -194,7 +193,7 @@ class CORnet(nn.Module):
             feedback[receiver_name] = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
         feedback = nn.ModuleDict(feedback)
         return feedback
-        
+
     def initialize_weights(self, pretrained, architecture, weights_files):
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.Linear)):
@@ -209,7 +208,7 @@ class CORnet(nn.Module):
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             device = torch.device(device)
             weights = torch.load(weights_files[architecture], map_location=device)
-            
+
             if architecture == 'CORnet-Z':
                 for area_name in self.areas.keys():  # weights and biases only loaded for V1, V2, V4, IT
                     self.areas[area_name].conv.weight = nn.Parameter(weights['state_dict']['module.' + area_name + '.conv.weight'])
@@ -220,7 +219,7 @@ class CORnet(nn.Module):
                 print('to do')
             else:
                 raise ValueError('only supports \'CORnet-Z\' and \'CORnet-S\'')
-    
+
     def feedforward(self, x, activations_to_return=()):
         """
         computes a single feedforward pass through the convolutional part of the CORnet, returning any specified activation maps

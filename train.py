@@ -3,7 +3,8 @@
 # Name: train.py
 # Training loop for CORnet on CIFAR-10
 
-import os, argparse, time, glob, pickle, subprocess, shlex, io, pprint
+import argparse
+import time
 from tqdm import tqdm
 from datetime import datetime
 import torch
@@ -11,7 +12,6 @@ import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 import numpy as np
 from matplotlib import pyplot as plt
 from cornet import CORnet
@@ -24,30 +24,30 @@ print(f'device: {device}')
 device = torch.device(device)
 
 parser = argparse.ArgumentParser(description='CIFAR10 Training')
-parser.add_argument('-model','--model_name', default='CORnet-Z', type=str,
+parser.add_argument('-model', '--model_name', default='CORnet-Z', type=str,
                     help='the name of the model to train')
-parser.add_argument('-feedback_connections','--feedback_connections', default={}, type=str,
+parser.add_argument('-feedback_connections', '--feedback_connections', default={}, type=str,
                     help='whether the model has feedback connections')
-parser.add_argument('-epochs','--n_epochs', default=50, type=int,
+parser.add_argument('-epochs', '--n_epochs', default=50, type=int,
                     help='number of total epochs to run')
-parser.add_argument('-batch_size','--batch_size', default=32, type=int,
+parser.add_argument('-batch_size', '--batch_size', default=32, type=int,
                     help='batch size')
 parser.add_argument('-lr', '--learning_rate', default=.001, type=float,
                     help='initial learning rate')
-parser.add_argument('-step','--step_size', default=10, type=int,
+parser.add_argument('-step', '--step_size', default=10, type=int,
                     help='after how many epochs learning rate should be decreased 10x')
-parser.add_argument('-momentum','--momentum', default=.9, type=float, help='momentum')
-parser.add_argument('-decay','--weight_decay', default=1e-4, type=float,
+parser.add_argument('-momentum', '--momentum', default=.9, type=float, help='momentum')
+parser.add_argument('-decay', '--weight_decay', default=1e-4, type=float,
                     help='weight decay ')
-parser.add_argument('-gamma','--gamma', default=0.1, type=float,
+parser.add_argument('-gamma', '--gamma', default=0.1, type=float,
                     help='scheduler multiplication factor')
-parser.add_argument('-patience','--early_stop_patience', default=3, type=int,
+parser.add_argument('-patience', '--early_stop_patience', default=3, type=int,
                     help='no. of epochs patience for early stopping ')
 args = parser.parse_args()
 
 now = datetime.now()
 date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
-print('date: %s'%(date))
+print('date: %s' % (date))
 print(f'model: {args.model_name}')
 print(f'feedback: {args.feedback_connections}')
 
@@ -96,8 +96,7 @@ classes = ('plane', 'car', 'bird', 'cat',
 model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10).to(device)
 scaler = torch.cuda.amp.GradScaler()
 loss = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=learning_rate,
-                   momentum=args.momentum, weight_decay=args.weight_decay)
+optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=gamma)
 
 # Save the train and test loss at each epoch
@@ -106,8 +105,8 @@ scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma
 # Implement early stopping
 
 count = 0
-total_loss_train, total_loss_test = [],[]
-total_acc_train, total_acc_test = [],[]
+total_loss_train, total_loss_test = [], []
+total_acc_train, total_acc_test = [], []
 
 train_start = time.clock()
 
@@ -120,7 +119,7 @@ for epoch in range(n_epochs):
     train_correct = 0
     train_total = 0
 
-    for i, (input_batch, label_batch) in tqdm(enumerate(trainloader,0), total=round(len(trainset)/batch_size), position=0, leave=True):
+    for i, (input_batch, label_batch) in tqdm(enumerate(trainloader, 0), total=round(len(trainset)/batch_size), position=0, leave=True):
         input_batch = input_batch.to(device)
         label_batch = label_batch.to(device)
 
@@ -128,12 +127,12 @@ for epoch in range(n_epochs):
 
         with torch.cuda.amp.autocast():
             output_batch = model(input_batch)
-            train_loss_batch = loss(output_batch,label_batch)
+            train_loss_batch = loss(output_batch, label_batch)
 
         scaler.scale(train_loss_batch).backward()
         scaler.step(optimizer)
         scaler.update()
-        
+
         train_loss_epoch += train_loss_batch.item()
 
         # calculate accuracy
@@ -141,7 +140,7 @@ for epoch in range(n_epochs):
         train_total += label_batch.size(0)
         train_acc_epoch += (predicted.float() == label_batch.float()).sum()
         if i % 150 == 0:
-            print('For epoch %i, batch %i train loss is %f'%(epoch, i, train_loss_batch.float()))
+            print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
 
     total_loss_train.append(train_loss_epoch/train_total)
     total_acc_train.append(train_acc_epoch/train_total)
@@ -158,7 +157,7 @@ for epoch in range(n_epochs):
 
         with torch.cuda.amp.autocast():
             output_batch = model(input_batch)
-            test_loss_batch = loss(output_batch,label_batch)
+            test_loss_batch = loss(output_batch, label_batch)
 
         scaler.scale(test_loss_batch).backward()
         scaler.step(optimizer)
@@ -175,42 +174,42 @@ for epoch in range(n_epochs):
     total_loss_test.append(float(test_loss_epoch/test_total))
     total_acc_test.append(float(test_acc_epoch/test_total))
 
-    print('For epoch %i train loss is %f'%(epoch,total_loss_train[-1]))
-    print('For epoch %i test loss is %f'%(epoch,total_loss_test[-1]))
+    print('For epoch %i train loss is %f' % (epoch, total_loss_train[-1]))
+    print('For epoch %i test loss is %f' % (epoch, total_loss_test[-1]))
 
-    print('For epoch %i train acc is %f'%(epoch,total_acc_train[-1]))
-    print('For epoch %i test acc is %f'%(epoch,total_acc_test[-1]))
+    print('For epoch %i train acc is %f' % (epoch, total_acc_train[-1]))
+    print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
 
     # early stopping
-    if epoch>1 and total_loss_test[-1]>total_loss_test[-2]:
+    if epoch > 1 and total_loss_test[-1] > total_loss_test[-2]:
         if count < early_stop:
-            count+=1
+            count += 1
         else:
             count = 0
-            print("Stopping early bec loss has not decreased for last %i epochs"%(early_stop))
+            print("Stopping early bec loss has not decreased for last %i epochs" % (early_stop))
             break
     else:
-        torch.save(model.state_dict(),'checkpoints/cornetZ_%i_%s.pth'%(epoch,date))
+        torch.save(model.state_dict(), 'checkpoints/cornetZ_%i_%s.pth' % (epoch, date))
 
-    print('Time taken for this epoch: %0.2f'%(time.clock() - epoch_start))
+    print('Time taken for this epoch: %0.2f' % (time.clock() - epoch_start))
     print('----------------')
 
-print('Total time for training+testing: %0.2f'%(train_start - time.clock()))
+print('Total time for training+testing: %0.2f' % (train_start - time.clock()))
 
 
 # plotting the train and test loss and acc
-plt.plot(total_loss_train,label='train loss')
-plt.plot(total_loss_test,label='test loss')
+plt.plot(total_loss_train, label='train loss')
+plt.plot(total_loss_test, label='test loss')
 plt.title(args.model_name + ' loss- training and testing')
 plt.xlabel('no. of epochs')
 plt.legend()
-plt.savefig('plots/' + args.model_name + '_loss_%s.png'%(date))
+plt.savefig('plots/' + args.model_name + '_loss_%s.png' % (date))
 plt.close()
 
-plt.plot(total_acc_train,label='train acc')
-plt.plot(total_acc_test,label='test acc')
+plt.plot(total_acc_train, label='train acc')
+plt.plot(total_acc_test, label='test acc')
 plt.title(args.model_name + ' accuracy- training and testing')
 plt.xlabel('no. of epochs')
 plt.legend()
-plt.savefig('plots/' + args.model_name + '_acc_%s.png'%(date))
+plt.savefig('plots/' + args.model_name + '_acc_%s.png' % (date))
 plt.close()
