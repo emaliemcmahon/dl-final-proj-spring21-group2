@@ -181,6 +181,7 @@ def parse_args():
     print(f'model: {args.model_name}')
     print(f'feedback: {args.feedback_connections}')
     print(f'batch_size: {args.batch_size}')
+    print(f'number of epochs: {args.n_epochs}')
     return args
 
 def main():
