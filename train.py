@@ -151,25 +151,21 @@ for epoch in range(n_epochs):
     test_correct = 0
     test_total = 0
 
-    for k, (input_batch, label_batch) in enumerate(testloader, 0):
-        input_batch = input_batch.to(device)
-        label_batch = label_batch.to(device)
+    with torch.no_grad():
+        for k, (input_batch, label_batch) in enumerate(testloader, 0):
+            input_batch = input_batch.to(device)
+            label_batch = label_batch.to(device)
 
-        with torch.cuda.amp.autocast():
-            output_batch = model(input_batch)
-            test_loss_batch = loss(output_batch, label_batch)
+            with torch.cuda.amp.autocast():
+                output_batch = model(input_batch)
+                test_loss_batch = loss(output_batch, label_batch)
 
-        scaler.scale(test_loss_batch).backward()
-        scaler.step(optimizer)
-        scaler.update()
-        optimizer.zero_grad(set_to_none=True)
+            test_loss_epoch += test_loss_batch.item()
 
-        test_loss_epoch += test_loss_batch.item()
-
-        # calculate accuracy
-        _, predicted = torch.max(output_batch.data, 1)
-        test_total += label_batch.size(0)
-        test_acc_epoch += (predicted.float() == label_batch.float()).sum()
+            # calculate accuracy
+            _, predicted = torch.max(output_batch.data, 1)
+            test_total += label_batch.size(0)
+            test_acc_epoch += (predicted.float() == label_batch.float()).sum()
 
     total_loss_test.append(float(test_loss_epoch/test_total))
     total_acc_test.append(float(test_acc_epoch/test_total))
