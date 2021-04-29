@@ -57,7 +57,7 @@ def load_model(device, args):
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
     return model, scaler, loss, optimizer, scheduler
 
-def train(device, args, trainloader, n_batches, test_loader, model, scaler, loss, optimizer, scheduler):
+def train(device, args, trainloader, n_batches, testloader, model, scaler, loss, optimizer, scheduler):
     # Save the train and test loss at each epoch
     # Save the train and test accuracy at each epoch
     # Save the model at each epoch
@@ -194,7 +194,7 @@ def main():
     args = parse_args()
     trainloader, n_batches, testloader = load_data(args)
     model, scaler, loss, optimizer, scheduler = load_model(device, args)
-    train(device, args, trainloader, n_batches, test_loader, model, scaler, loss, optimizer, scheduler)
+    train(device, args, trainloader, n_batches, testloader, model, scaler, loss, optimizer, scheduler)
 
 
 if __name__ == "__main__":
