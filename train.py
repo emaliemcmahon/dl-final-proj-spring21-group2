@@ -93,9 +93,16 @@ classes = ('plane', 'car', 'bird', 'cat',
 
 
 # load model
+feedback_connections = {
+    'IT': ('V1', 'V2', 'V4', 'IT'),
+    'V4': ('V1', 'V2', 'V4'),
+    'V2': ('V1', 'V2'),
+    'V1': ('V1',),
+}
+
 model = CORnet(pretrained=True, architecture=args.model_name,
             feedback_connections=args.feedback_connections, n_classes=10).to(device)
-
+scaler = torch.cuda.amp.GradScaler()
 loss = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=learning_rate,
                    momentum=args.momentum, weight_decay=args.weight_decay)
@@ -125,13 +132,16 @@ for epoch in range(n_epochs):
         input_batch = input_batch.to(device)
         label_batch = label_batch.to(device)
 
-        output_batch = model(input_batch)
-        train_loss_batch = loss(output_batch,label_batch)
+        optimizer.zero_grad(set_to_none=True)
 
-        optimizer.zero_grad()
-        train_loss_batch.backward()
-        optimizer.step()
+        with torch.cuda.amp.autocast():
+            output_batch = model(input_batch)
+            train_loss_batch = loss(output_batch,label_batch)
 
+        scaler.scale(train_loss_batch).backward()
+        scaler.step(optimizer)
+        scaler.update()
+        
         train_loss_epoch += train_loss_batch.item()
 
         # calculate accuracy
@@ -154,9 +164,16 @@ for epoch in range(n_epochs):
         input_batch = input_batch.to(device)
         label_batch = label_batch.to(device)
 
-        output_batch = model(input_batch)
-        test_loss_batch = loss(output_batch,label_batch)
-        test_loss_epoch+=test_loss_batch.item()
+        with torch.cuda.amp.autocast():
+            output_batch = model(input_batch)
+            test_loss_batch = loss(output_batch,label_batch)
+
+        scaler.scale(test_loss_batch).backward()
+        scaler.step(optimizer)
+        scaler.update()
+        optimizer.zero_grad(set_to_none=True)
+
+        test_loss_epoch += test_loss_batch.item()
 
         # calculate accuracy
         _, predicted = torch.max(output_batch.data, 1)

@@ -4,22 +4,28 @@ import torch
 from torch import nn
 
 
-class Flatten(nn.Module):
+def invert_dictionary(x):
+    y = {}
+    for key, values in x.items():
+        for value in values:
+            if value not in y.keys():
+                y[value] = []
+            y[value].append(key)
+    return y
 
+
+class Flatten(nn.Module):
     """
     Helper module for flattening input tensor to 1-D for the use in Linear modules
     """
-
     def forward(self, x):
         return x.view(x.size(0), -1)
 
 
 class CORblock_Z(nn.Module):
-
     """
-    CORblock_Z is a "computational region" of CORnet-Z
+    CORblock_Z is a computational area of CORnet-Z
     """
-    
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1):
         super().__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=kernel_size // 2)
@@ -34,11 +40,9 @@ class CORblock_Z(nn.Module):
 
 
 class CORblock_S(nn.Module):
-
     """
-    CORblock_S is a "computational region" of CORnet-S
+    CORblock_S is a computational area of CORnet-S
     """
-
     scale = 4  # scale of the bottleneck convolution channels
 
     def __init__(self, in_channels, out_channels, times=1):
@@ -94,35 +98,53 @@ class CORblock_S(nn.Module):
 
 
 class CORnet(nn.Module):
-
     """
-    CORnet is a computational model of the visual cortex comprising multiple CORblock_Z/CORblock_S modules
+    CORnet is a computational model of the visual cortex. Here, we enhance CORnet by implementing feedback connections.
     """
-
-    def __init__(self, pretrained=False, architecture='CORnet-Z', feedback_connections='all', n_classes=10):
-        
+    def __init__(self, architecture='CORnet-Z', n_classes=10, pretrained=True, feedback_connections={}, n_passes=1):
         """
-        if pretrained=True, parameters from ImageNet pretraining will be loaded for all layers except the decoder
-        architecture can be 'CORnet-Z' or 'CORnet-S'
-        feedback connections can be {}, 'all', or a custom dictionary
-        n_classes can be any integer corresponding to the number of output classes
+        architecture: 'CORnet-Z' or 'CORnet-S'
+        n_classes: number of output classes
+        pretrained: parameters from ImageNet pretraining will be loaded for all areas
+        n_passes: number of recurrent passes through the network
         """
-        
         super().__init__()
+        self.weights_files = {
+            'CORnet-Z': 'cornet_z-5c427c9c.pth',
+            'CORnet-S': 'cornet_s-XXXX.pth',  # TODO update filename
+        }
+        self.input_size = (1, 3, 224, 224)
 
         self.architecture = architecture
+        self.n_classes = n_classes
+        self.pretrained = pretrained
+        self.feedback_connections = feedback_connections
+        self.inverted_feedback_connections = invert_dictionary(feedback_connections)
+        self.n_passes = n_passes
 
-        # convolutional architecture
-        if self.architecture == 'CORnet-Z':
-            self.regions = nn.ModuleDict({
+        self.areas = self.create_areas(self.architecture)
+        self.decoder = self.create_decoder(self.n_classes)
+        self.sizes = self.compute_sizes(self.input_size)
+        self.feedback = self.create_feedback(self.sizes, self.feedback_connections, self.inverted_feedback_connections)
+
+        self.initialize_weights(self.pretrained, self.architecture, self.weights_files)
+
+        self.sequence = ['input'] + list(self.areas.keys())
+
+    @staticmethod
+    def create_areas(architecture):
+        """
+        creates the convolutional architecture of the CORnet, exactly as in CORnet-Z and CORnet-S
+        """
+        if architecture == 'CORnet-Z':
+            areas = nn.ModuleDict({
                 'V1': CORblock_Z(3, 64, kernel_size=7, stride=2),
                 'V2': CORblock_Z(64, 128),
                 'V4': CORblock_Z(128, 256),
                 'IT': CORblock_Z(256, 512),
             })
-            self.weights_file = 'cornet_z-5c427c9c.pth' 
-        elif self.architecture == 'CORnet-S':
-            self.regions = nn.ModuleDict({
+        elif architecture == 'CORnet-S':
+            areas = nn.ModuleDict({
                 'V1': nn.Sequential(OrderedDict([
                     ('conv1', nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)),
                     ('norm1', nn.BatchNorm2d(64)),
@@ -136,34 +158,36 @@ class CORnet(nn.Module):
                 'V4': CORblock_S(128, 256, times=4),
                 'IT': CORblock_S(256, 512, times=2),
             })
-            self.weights_file = 'cornet_s-XXXX.pth'  # TODO update filename
         else:
-            raise ValueError('only supports \'CORnet-Z\' and \'CORnet-S\'')
+            raise ValueError('allowed architectures are \'CORnet-Z\' and \'CORnet-S\'')
+        return areas
 
-        # decoder head
-        self.decoder = nn.Sequential(OrderedDict([
+    @staticmethod
+    def create_decoder(n_classes):
+        """
+        creates a decoder that is used to predict raw class scores for classification
+        """
+        decoder = nn.Sequential(OrderedDict([
             ('avgpool', nn.AdaptiveAvgPool2d(1)),
             ('flatten', Flatten()),
             ('linear', nn.Linear(512, n_classes)),
         ]))
+        return decoder
+
+    @staticmethod
+    def create_feedback(sizes, feedback_connections, inverted_feedback_connections):
+        """
+        creates feedback layers (depthwise convolutions) that mix feedback information with the feedforward input
+        """
+        feedback = {area_name: None for area_name in feedback_connections.keys()}
+        for receiver_name, giver_names in inverted_feedback_connections.items():
+            out_channels = sizes[receiver_name]['input'][1]
+            in_channels = sum([sizes[area_name]['output'][1] for area_name in giver_names]) + out_channels
+            feedback[receiver_name] = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
+        feedback = nn.ModuleDict(feedback)
+        return feedback
         
-        # sizes of input and output for each region
-        self.input_size = (1, 3, 224, 224)
-        self.sizes = self.get_sizes()
-
-        # feedback
-        if feedback_connections == 'all':  # all possible feedback connections
-            self.feedback_connections = {  # the output of the `key` region is combined with the outputs of the `value` regions
-                'input': ['V1', 'V2', 'V4', 'IT'],
-                'V1': ['V2', 'V4', 'IT'],
-                'V2': ['V4', 'IT'],
-                'V4': ['IT'],
-            }
-        else:  # custom feedback connections
-            self.feedback_connections = feedback_connections
-        self.feedback = self.create_feedback_layers()
-
-        # initialization
+    def initialize_weights(self, pretrained, architecture, weights_files):
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.Linear)):
                 nn.init.xavier_uniform_(m.weight)
@@ -176,76 +200,75 @@ class CORnet(nn.Module):
         if pretrained:  # parameters from ImageNet training
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             device = torch.device(device)
-            weights = torch.load(self.weights_file, map_location=device)
+            weights = torch.load(weights_files[architecture], map_location=device)
             
-            if self.architecture == 'CORnet-Z':
-                for region_name in self.regions.keys():  # weights and biases only loaded for V1, V2, V4, IT
-                    self.regions[region_name].conv.weight = nn.Parameter(weights['state_dict']['module.' + region_name + '.conv.weight'])
-                    self.regions[region_name].conv.bias = nn.Parameter(weights['state_dict']['module.' + region_name + '.conv.bias'])
-            elif self.architecture == 'CORnet-S':
-                self.weights_file = ''
+            if architecture == 'CORnet-Z':
+                for area_name in self.areas.keys():  # weights and biases only loaded for V1, V2, V4, IT
+                    self.areas[area_name].conv.weight = nn.Parameter(weights['state_dict']['module.' + area_name + '.conv.weight'])
+                    self.areas[area_name].conv.bias = nn.Parameter(weights['state_dict']['module.' + area_name + '.conv.bias'])
+            elif architecture == 'CORnet-S':
                 # TODO add support for loading pretrained weights for CORblock-S
 
                 print('to do')
             else:
                 raise ValueError('only supports \'CORnet-Z\' and \'CORnet-S\'')
-            
-    def create_feedback_layers(self):
-        feedback = {}
-        for earlier_region_name, later_region_names in self.feedback_connections.items():
-            input_region_names = later_region_names + [earlier_region_name]
-            in_channels = sum([self.sizes[region_name]['output'][1] for region_name in input_region_names])
-            out_channels = self.sizes[earlier_region_name]['output'][1]
-            feedback[earlier_region_name] = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
-        feedback = nn.ModuleDict(feedback)
-        return feedback
+    
+    def feedforward(self, x, activations_to_return=()):
+        """
+        computes a single feedforward pass through the convolutional part of the CORnet, returning any specified activation maps
+        """
+        activation = {area_name: None for area_name in activations_to_return}
+        if 'input' in activations_to_return:
+            activation['input'] = x
+        for area_name, area in self.areas.items():
+            x = area(x)
+            if area_name in activations_to_return:
+                activation[area_name] = x
+        if activations_to_return:
+            return activation
+        else:
+            return x
 
     def forward(self, image):
-        if self.feedback_connections is None:
-            output = self.feedforward(image, return_intermediate_output=False)
+        """
+        full forward pass through the CORnet
+        """
+        if self.feedback_connections:
+            activations_to_return = ['input'] + list(self.feedback_connections.keys())
+            activation = self.feedforward(image, activations_to_return=activations_to_return)
+            for _ in range(self.n_passes):
+                for receiver_name, giver_names in self.inverted_feedback_connections.items():
+                    input_names = giver_names + [self.sequence[self.sequence.index(receiver_name) - 1]]
+                    out_dimensions = self.sizes[receiver_name]['input'][-2:]
+                    feedback = torch.cat([nn.Upsample(size=out_dimensions)(activation[area_name]) for area_name in input_names], 1)
+                    activation[receiver_name] = self.areas[receiver_name](self.feedback[receiver_name](feedback))
+            activation = activation[self.sequence[-1]]
         else:
-            all_region_names = list(self.regions.keys())
-            order = ['input', *self.regions.keys()]
+            activation = self.feedforward(image, activations_to_return=self.feedback_connections.keys())
+        activation = self.decoder(activation)
+        return activation
 
-            output = self.feedforward(image, return_intermediate_output=True)
-
-            for earlier_region_name, later_region_names in self.feedback_connections.items():
-                input_region_names = later_region_names + [earlier_region_name]
-                target_region_name = all_region_names[order.index(earlier_region_name)]
-
-                out_size = self.sizes[earlier_region_name]['input'][-2:]
-                feedback = torch.cat([nn.Upsample(size=out_size)(output[region_name]) for region_name in input_region_names], 1)
-                
-                output[target_region_name] = self.regions[target_region_name](self.feedback[earlier_region_name](feedback))
-
-            output = output[list(self.regions.keys())[-1]]
-
-        output = self.decoder(output)
-        return output
-
-    def feedforward(self, image, return_intermediate_output=False):
-        if not return_intermediate_output:
-            output = image
-            for region in self.regions.values():
-                output = region(output)
-        else:
-            output = {'input': image}
-            for i_region, (region_name, region) in enumerate(self.regions.items()):
-                if i_region == 0:
-                    output[region_name] = region(image)
-                else:
-                    output[region_name] = region(output[previous_region_name])
-                previous_region_name = region_name
-        return output
-
-    def get_sizes(self):
-        input_size = self.input_size
-        outputs = self.feedforward(torch.rand(input_size), return_intermediate_output=True)
+    def compute_sizes(self, input_size):
+        random_input = torch.rand(input_size)
+        input_size = random_input.size()
+        activations = self.feedforward(random_input, activations_to_return=self.areas.keys())
         sizes = {}
-        for region_name in list(outputs.keys()):
-            sizes[region_name] = {
+        for area_name in activations.keys():
+            sizes[area_name] = {
                 'input': input_size,
-                'output': outputs[region_name].size(),
+                'output': activations[area_name].size(),
             }
-            input_size = sizes[region_name]['output']
+            input_size = sizes[area_name]['output']
         return sizes
+
+
+# feedback_connections = {
+#     'IT': ('V1', 'V2', 'V4', 'IT'),
+#     'V4': ('V1', 'V2', 'V4'),
+#     'V2': ('V1', 'V2'),
+#     'V1': ('V1',),
+# }
+
+# model = CORnet(architecture='CORnet-Z', feedback_connections=feedback_connections)
+# print(model(torch.rand(16, 3, 224, 224)))
+# print(1)
