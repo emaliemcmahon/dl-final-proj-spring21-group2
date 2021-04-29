@@ -45,7 +45,7 @@ def load_data(args):
                                            download=True, transform=transform_test)
     testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size,
                                              shuffle=False)
-    return trainloader, int(len(trainset)/batch_size), testloader
+    return trainloader, int(len(trainset)/args.batch_size), testloader
 
 
 def load_model(device, args):
