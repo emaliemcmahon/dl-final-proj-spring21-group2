@@ -103,9 +103,6 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
                 predicted_class = classes[torch.argmax(output_batch[0,:])]
                 print(f'Predicted class: {predicted_class}')
 
-            if i == 0:
-                break
-
         total_loss_train.append(train_loss_epoch/train_total)
         total_acc_train.append(train_acc_epoch/train_total)
 
@@ -154,8 +151,6 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
             now = datetime.now()
             date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
             torch.save(model.state_dict(), 'checkpoints/%s_%i_%s.pth' % (args.model_name, epoch, date))
-        if epoch == 0:
-            break
 
 def parse_args():
     parser = argparse.ArgumentParser(description='CIFAR10 Training')
