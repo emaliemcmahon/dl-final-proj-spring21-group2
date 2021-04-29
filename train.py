@@ -78,14 +78,12 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
 
         for i, (input_batch, label_batch) in tqdm(enumerate(trainloader, 0), total=n_batches, position=0, leave=True):
             input_batch = input_batch.to(device)
-            true_class = classes[torch.argmax(label_batch)]
             label_batch = label_batch.to(device)
 
             optimizer.zero_grad(set_to_none=True)
 
             with torch.cuda.amp.autocast():
                 output_batch = model(input_batch)
-                predicted_class = classes[torch.argmax(label_batch[0,:])]
                 train_loss_batch = loss(output_batch, label_batch)
 
             scaler.scale(train_loss_batch).backward()
@@ -101,6 +99,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
             if i == 0 or i % 150 == 0 or i == (n_batches-1):
                 print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
                 print(f'True class: {true_class}')
+                predicted_class = classes[torch.argmax(output_batch[0,:])]
                 print(f'Predicted class: {predicted_class}')
 
             if i == 0:
