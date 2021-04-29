@@ -68,7 +68,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
     total_loss_train, total_loss_test = [], []
     total_acc_train, total_acc_test = [], []
 
-    for epoch in range(1):#range(args.n_epochs):
+    for epoch in range(args.n_epochs):
 
         model.train()
         train_loss_epoch = 0.
@@ -76,7 +76,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
         train_correct = 0
         train_total = 0
 
-        for i, (input_batch, label_batch) in range(1):#tqdm(enumerate(trainloader, 0), total=n_batches, position=0, leave=True):
+        for i, (input_batch, label_batch) in tqdm(enumerate(trainloader, 0), total=n_batches, position=0, leave=True):
             input_batch = input_batch.to(device)
             true_class = classes[torch.argmax(label_batch)]
             label_batch = label_batch.to(device)
@@ -102,6 +102,12 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
                 print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
                 print(f'True class: {true_class}')
                 print(f'Predicted class: {predicted_class}')
+
+            if i == 0:
+                break
+
+        if i == 0:
+            break
 
         total_loss_train.append(train_loss_epoch/train_total)
         total_acc_train.append(train_acc_epoch/train_total)
