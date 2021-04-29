@@ -98,9 +98,9 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
             train_acc_epoch += (predicted.float() == label_batch.float()).sum()
             if i == 0 or i % 150 == 0 or i == (n_batches-1):
                 print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
-                true_class = classes[torch.argmax(label_batch)]
+                true_class = classes[torch.topk(label_batch, k=5)[1]]
                 print(f'True class: {true_class}')
-                predicted_class = classes[torch.argmax(output_batch[0,:])]
+                predicted_class = classes[torch.topk(output_batch[0,:], k=5)[1]]
                 print(f'Predicted class: {predicted_class}')
 
             if i == 0:
