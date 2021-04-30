@@ -137,20 +137,22 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
         print('For epoch %i train acc is %f' % (epoch, total_acc_train[-1]))
         print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
 
+
+        np.save(f'plots/{args.model_name}_train.npy', np.array([total_loss_train, total_acc_train]))
+        np.save(f'plots/{args.model_name}_test.npy', np.array([total_loss_test, total_acc_test]))
+        now = datetime.now()
+        date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
+        torch.save(model.state_dict(), 'checkpoints/%s_%i_%s.pth' % (args.model_name, epoch, date))
+
         # early stopping
         if epoch > 1 and total_loss_test[-1] > total_loss_test[-2]:
             if count < args.early_stop_patience:
                 count += 1
             else:
                 count = 0
-                print("Stopping early bec loss has not decreased for last %i epochs" % (early_stop))
+                print("Stopping early bec loss has not decreased for last %i epochs" % (args.early_stop))
                 break
-        else:
-            np.save(f'plots/{args.model_name}_train.npy', np.array([total_loss_train, total_acc_train]))
-            np.save(f'plots/{args.model_name}_test.npy', np.array([total_loss_test, total_acc_test]))
-            now = datetime.now()
-            date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
-            torch.save(model.state_dict(), 'checkpoints/%s_%i_%s.pth' % (args.model_name, epoch, date))
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='CIFAR10 Training')
