@@ -138,7 +138,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
         print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
 
 
-        np.save(f'plots/{args.model_name}_train.npy', np.array([total_loss_train, total_acc_train]))
+        np.save(f'plots/{args.model_name}_train.npy', np.array([total_loss_train, total_acc_train.detach().cpu().numpy()]))
         np.save(f'plots/{args.model_name}_test.npy', np.array([total_loss_test, total_acc_test]))
         now = datetime.now()
         date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
