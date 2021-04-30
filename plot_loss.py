@@ -5,8 +5,8 @@ import torch
 
 def plot_loss(args):
     # plotting the train and test loss and acc
-    train = np.load(f'plots/{args.model_name}_train.npy', allow_pickle=True)
-    test = np.load(f'plots/{args.model_name}_test.npy', allow_pickle=True)
+    train = np.load(f'plots/{args.model_name}_{args.feedback_connections}_train.npy', allow_pickle=True)
+    test = np.load(f'plots/{args.model_name}_{args.feedback_connections}_test.npy', allow_pickle=True)
 
     plt.plot(train[0],label='train loss')
     plt.plot(test[0],label='test loss')
@@ -29,6 +29,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description='plotting training results')
     parser.add_argument('-model', '--model_name', default='CORnet-Z', type=str,
                         help='the name of the model to train')
+    parser.add_argument('-feedback_connections', '--feedback_connections', default={}, type=str,
+                        help='whether the model has feedback connections')
     args = parser.parse_args()
     return args
 
