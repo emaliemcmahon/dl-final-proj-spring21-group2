@@ -105,7 +105,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
                 #print(f'Predicted class: {predicted_class}')
 
         total_loss_train.append(train_loss_epoch/train_total)
-        total_acc_train.append(train_acc_epoch/train_total)
+        total_acc_train.append(float(train_acc_epoch/train_total))
 
         model.eval()
         test_loss_epoch = 0.
@@ -139,7 +139,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
         print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
 
 
-        np.save(f'plots/{args.model_name}_{args.feedback_connections}_train.npy', np.array([total_loss_train, total_acc_train.detach().cpu().numpy()]))
+        np.save(f'plots/{args.model_name}_{args.feedback_connections}_train.npy', np.array([total_loss_train, total_acc_train]))
         np.save(f'plots/{args.model_name}_{args.feedback_connections}_test.npy', np.array([total_loss_test, total_acc_test]))
         plot_loss(args)
         now = datetime.now()
