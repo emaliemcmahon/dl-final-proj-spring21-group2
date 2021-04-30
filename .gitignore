@@ -131,3 +131,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 cornet_s-1d3f7974.pth
+cornet_rt-933c001c.pth
