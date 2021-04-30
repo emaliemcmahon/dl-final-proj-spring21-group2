@@ -5,11 +5,12 @@ from torch import nn
 
 def invert_dictionary(x):
     y = {}
-    for key, values in x.items():
-        for value in values:
-            if value not in y.keys():
-                y[value] = []
-            y[value].append(key)
+    if x:
+        for key, values in x.items():
+            for value in values:
+                if value not in y.keys():
+                    y[value] = []
+                y[value].append(key)
     return y
 
 
@@ -110,7 +111,7 @@ class CORnet(nn.Module):
         super().__init__()
         self.weights_files = {
             'CORnet-Z': 'cornet_z-5c427c9c.pth',
-            'CORnet-S': 'cornet_s-1d3f7974.pth',  # TODO update filename
+            'CORnet-S': 'cornet_s-1d3f7974.pth',
         }
         self.input_size = (1, 3, 224, 224)
 
@@ -207,15 +208,19 @@ class CORnet(nn.Module):
         if pretrained:  # parameters from ImageNet training
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             device = torch.device(device)
-            weights = torch.load(weights_files[architecture], map_location=device)
+            weights = torch.load(weights_files[architecture], map_location=device)['state_dict']
 
             if architecture == 'CORnet-Z':
                 for area_name in self.areas.keys():  # weights and biases only loaded for V1, V2, V4, IT
-                    self.areas[area_name].conv.weight = nn.Parameter(weights['state_dict']['module.' + area_name + '.conv.weight'])
-                    self.areas[area_name].conv.bias = nn.Parameter(weights['state_dict']['module.' + area_name + '.conv.bias'])
+                    self.areas[area_name].conv.weight = nn.Parameter(weights['module.' + area_name + '.conv.weight'])
+                    self.areas[area_name].conv.bias = nn.Parameter(weights['module.' + area_name + '.conv.bias'])
             elif architecture == 'CORnet-S':
                 # TODO add support for loading pretrained weights for CORblock-S
-
+                # self.areas[area_name].conv1.weight = nn.Parameter(weights[''])
+                # self.areas[area_name].conv1.bias = nn.Parameter(weights[''])
+                # self.areas[area_name].conv2.weight = nn.Parameter(weights[''])
+                # self.areas[area_name].conv2.bias = nn.Parameter(weights[''])
+                raise ValueError('I have not implemented CORnet-S weight loading yet')
                 print('to do')
             else:
                 raise ValueError('only supports \'CORnet-Z\' and \'CORnet-S\'')
@@ -277,6 +282,9 @@ class CORnet(nn.Module):
 # }
 
 # torch.manual_seed(0)
+
+# feedback_connections = {}
+
 # with torch.no_grad():
-#     model = CORnet(architecture='CORnet-Z', n_classes=10, feedback_connections=feedback_connections, pretrained=True, n_passes=1)
+#     model = CORnet(architecture='CORnet-S', n_classes=10, feedback_connections=feedback_connections, pretrained=False, n_passes=1)
 #     print(model(torch.rand(1, 3, 224, 224)))
