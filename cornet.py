@@ -109,7 +109,7 @@ class CORnet(nn.Module):
         n_passes: number of recurrent passes through the network
         """
         super().__init__()
-        self.weights_files = {
+        self.state_dict_files = {
             'CORnet-Z': 'cornet_z-5c427c9c.pth',
             'CORnet-S': 'cornet_s-1d3f7974.pth',
         }
@@ -135,7 +135,7 @@ class CORnet(nn.Module):
         self.sizes = self.compute_sizes(self.input_size)
         self.feedback = self.create_feedback(self.sizes, self.feedback_connections, self.inverted_feedback_connections)
 
-        self.initialize_weights(self.pretrained, self.architecture, self.weights_files)
+        self.initialize_weights(self.pretrained, self.architecture, self.state_dict_files)
 
         self.sequence = ['input'] + list(self.areas.keys())
 
@@ -195,7 +195,7 @@ class CORnet(nn.Module):
         feedback = nn.ModuleDict(feedback)
         return feedback
 
-    def initialize_weights(self, pretrained, architecture, weights_files):
+    def initialize_weights(self, pretrained, architecture, state_dict_files):
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.Linear)):
                 nn.init.xavier_uniform_(m.weight)
@@ -208,20 +208,39 @@ class CORnet(nn.Module):
         if pretrained:  # parameters from ImageNet training
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             device = torch.device(device)
-            weights = torch.load(weights_files[architecture], map_location=device)['state_dict']
+            params = torch.load(state_dict_files[architecture], map_location=device)['state_dict']
 
             if architecture == 'CORnet-Z':
                 for area_name in self.areas.keys():  # weights and biases only loaded for V1, V2, V4, IT
-                    self.areas[area_name].conv.weight = nn.Parameter(weights['module.' + area_name + '.conv.weight'])
-                    self.areas[area_name].conv.bias = nn.Parameter(weights['module.' + area_name + '.conv.bias'])
+                    self.areas[area_name].conv.weight = nn.Parameter(params['module.' + area_name + '.conv.weight'])
+                    self.areas[area_name].conv.bias = nn.Parameter(params['module.' + area_name + '.conv.bias'])
             elif architecture == 'CORnet-S':
-                # TODO add support for loading pretrained weights for CORblock-S
-                # self.areas[area_name].conv1.weight = nn.Parameter(weights[''])
-                # self.areas[area_name].conv1.bias = nn.Parameter(weights[''])
-                # self.areas[area_name].conv2.weight = nn.Parameter(weights[''])
-                # self.areas[area_name].conv2.bias = nn.Parameter(weights[''])
-                raise ValueError('I have not implemented CORnet-S weight loading yet')
-                print('to do')
+                for area_name in self.areas.keys():
+                    if area_name == 'V1':
+                        layers = ['conv1', 'conv2']
+                    else:
+                        layers = ['conv_input', 'skip', 'conv1', 'conv2', 'conv3']
+                    for layer in layers:
+                        getattr(self.areas[area_name], layer).weight = nn.Parameter(params['module.' + area_name + '.' + layer + '.weight'])
+
+                    if area_name == 'V1':
+                        norms = ['norm1', 'norm2']
+                        n_norms = 0
+                    else:
+                        norms = ['norm_skip']
+                    if area_name == 'V2' or area_name == 'IT':
+                        n_norms = 2
+                    elif area_name == 'V4':
+                        n_norms = 4
+                    for x in ['1', '2', '3']:
+                        for i_norm in range(n_norms):
+                            norms.append('norm' + x + '_' + str(i_norm))
+
+                    for norm in norms:
+                        getattr(self.areas[area_name], norm).weight = nn.Parameter(params['module.' + area_name + '.' + norm + '.' + 'weight'])
+                        getattr(self.areas[area_name], norm).bias = nn.Parameter(params['module.' + area_name + '.' + norm + '.' + 'bias'])
+                        getattr(self.areas[area_name], norm).running_mean = params['module.' + area_name + '.' + norm + '.' + 'running_mean']
+                        getattr(self.areas[area_name], norm).running_var = params['module.' + area_name + '.' + norm + '.' + 'running_var']
             else:
                 raise ValueError('only supports \'CORnet-Z\' and \'CORnet-S\'')
 
@@ -274,17 +293,21 @@ class CORnet(nn.Module):
         return sizes
 
 
-# feedback_connections = {
-#     'V1': ('V1',),
-#     'V2': ('V1', 'V2'),
-#     'V4': ('V1', 'V2', 'V4'),
-#     'IT': ('V1', 'V2', 'V4', 'IT'),
-# }
+if __name__ == '__main__':
 
-# torch.manual_seed(0)
+    feedback_connections = {
+        'V1': ('V1',),
+        'V2': ('V1', 'V2'),
+        'V4': ('V1', 'V2', 'V4'),
+        'IT': ('V1', 'V2', 'V4', 'IT'),
+    }
 
-# feedback_connections = {}
+    torch.manual_seed(0)
 
-# with torch.no_grad():
-#     model = CORnet(architecture='CORnet-Z', n_classes=10, feedback_connections=feedback_connections, pretrained=False, n_passes=1)
-#     print(model(torch.rand(1, 3, 224, 224)))
+    with torch.no_grad():
+        model = CORnet(architecture='CORnet-S', n_classes=10, feedback_connections=feedback_connections, pretrained=True, n_passes=1)
+        try:
+            print(model(torch.rand(1, 3, 224, 224)))
+            print('model passes check')
+        except:
+            print('model fails check')
