@@ -14,6 +14,7 @@ import torch.optim as optim
 import numpy as np
 from matplotlib import pyplot as plt
 from cornet import CORnet
+from plot_loss import plot_loss
 
 def load_data(args):
     print('==> Preparing data..')
@@ -138,11 +139,12 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
         print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
 
 
-        np.save(f'plots/{args.model_name}_train.npy', np.array([total_loss_train, total_acc_train]))
-        np.save(f'plots/{args.model_name}_test.npy', np.array([total_loss_test, total_acc_test]))
+        np.save(f'plots/{args.model_name}_{agrs.feedback_connections}_train.npy', np.array([total_loss_train, total_acc_train.detach().cpu().numpy()]))
+        np.save(f'plots/{args.model_name}_{agrs.feedback_connections}_test.npy', np.array([total_loss_test, total_acc_test]))
+        plot_loss(args)
         now = datetime.now()
         date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
-        torch.save(model.state_dict(), 'checkpoints/%s_%s_%s.pth' % (args.model_name, str(epoch).zfill(2), date))
+        torch.save(model.state_dict(), 'checkpoints/%s_%s_%s_%s.pth' % (args.model_name, agrs.feedback_connections, tr(epoch).zfill(2), date))
 
         # early stopping
         if epoch > 1 and total_loss_test[-1] > total_loss_test[-2]:
