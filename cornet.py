@@ -286,5 +286,5 @@ class CORnet(nn.Module):
 # feedback_connections = {}
 
 # with torch.no_grad():
-#     model = CORnet(architecture='CORnet-S', n_classes=10, feedback_connections=feedback_connections, pretrained=False, n_passes=1)
+#     model = CORnet(architecture='CORnet-Z', n_classes=10, feedback_connections=feedback_connections, pretrained=False, n_passes=1)
 #     print(model(torch.rand(1, 3, 224, 224)))
