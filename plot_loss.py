@@ -28,6 +28,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='plotting training results')
     parser.add_argument('-model', '--model_name', default='CORnet-Z', type=str,
                         help='the name of the model to train')
+    args = parser.parse_args()
     return args
 
 def main():
