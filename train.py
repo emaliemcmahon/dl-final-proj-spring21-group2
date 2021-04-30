@@ -152,7 +152,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
                 count += 1
             else:
                 count = 0
-                print("Stopping early bec loss has not decreased for last %i epochs" % (args.early_stop))
+                print("Stopping early bec loss has not decreased for last %i epochs" % (args.early_stop_patience))
                 break
 
 
