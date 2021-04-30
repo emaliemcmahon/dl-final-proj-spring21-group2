@@ -110,7 +110,7 @@ class CORnet(nn.Module):
         super().__init__()
         self.weights_files = {
             'CORnet-Z': 'cornet_z-5c427c9c.pth',
-            'CORnet-S': 'cornet_s-XXXX.pth',  # TODO update filename
+            'CORnet-S': 'cornet_s-1d3f7974.pth',  # TODO update filename
         }
         self.input_size = (1, 3, 224, 224)
 
