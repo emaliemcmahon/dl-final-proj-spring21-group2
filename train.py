@@ -142,7 +142,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
         np.save(f'plots/{args.model_name}_test.npy', np.array([total_loss_test, total_acc_test]))
         now = datetime.now()
         date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
-        torch.save(model.state_dict(), 'checkpoints/%s_%i_%s.pth' % (args.model_name, epoch, date))
+        torch.save(model.state_dict(), 'checkpoints/%s_%s_%s.pth' % (args.model_name, str(epoch).zfill(2), date))
 
         # early stopping
         if epoch > 1 and total_loss_test[-1] > total_loss_test[-2]:
