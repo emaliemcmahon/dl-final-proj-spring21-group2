@@ -99,13 +99,13 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
             train_acc_epoch += (predicted.float() == label_batch.float()).sum()
             if i == 0 or i % 150 == 0 or i == (n_batches-1):
                 print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
-                true_class = classes[torch.argmax(label_batch)]
-                print(f'True class: {true_class}')
-                predicted_class = classes[torch.argmax(output_batch[0,:])]
-                print(f'Predicted class: {predicted_class}')
+                #true_class = classes[torch.argmax(label_batch)]
+                #print(f'True class: {true_class}')
+                #predicted_class = classes[torch.argmax(output_batch[0,:])]
+                #print(f'Predicted class: {predicted_class}')
 
         total_loss_train.append(train_loss_epoch/train_total)
-        total_acc_train.append(train_acc_epoch/train_total)
+        total_acc_train.append(float(train_acc_epoch/train_total))
 
         model.eval()
         test_loss_epoch = 0.
@@ -139,12 +139,12 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
         print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
 
 
-        np.save(f'plots/{args.model_name}_{agrs.feedback_connections}_train.npy', np.array([total_loss_train, total_acc_train.detach().cpu().numpy()]))
-        np.save(f'plots/{args.model_name}_{agrs.feedback_connections}_test.npy', np.array([total_loss_test, total_acc_test]))
+        np.save(f'plots/{args.model_name}_{args.feedback_connections}_train.npy', np.array([total_loss_train, total_acc_train]))
+        np.save(f'plots/{args.model_name}_{args.feedback_connections}_test.npy', np.array([total_loss_test, total_acc_test]))
         plot_loss(args)
         now = datetime.now()
         date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
-        torch.save(model.state_dict(), 'checkpoints/%s_%s_%s_%s.pth' % (args.model_name, agrs.feedback_connections, tr(epoch).zfill(2), date))
+        torch.save(model.state_dict(), 'checkpoints/%s_%s_%s_%s.pth' % (args.model_name, args.feedback_connections, str(epoch).zfill(2), date))
 
         # early stopping
         if epoch > 1 and total_loss_test[-1] > total_loss_test[-2]:
