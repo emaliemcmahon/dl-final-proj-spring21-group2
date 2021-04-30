@@ -13,7 +13,7 @@ def plot_loss(args):
     plt.title(args.model_name + ' loss- training and testing')
     plt.xlabel('no. of epochs')
     plt.legend()
-    plt.savefig(f'plots/{args.model_name}_loss.png')
+    plt.savefig(f'plots/{args.model_name}_{args.feedback_connections}_loss.png')
     plt.close()
 
     plt.plot(train[1],label='train acc')
@@ -21,7 +21,7 @@ def plot_loss(args):
     plt.title(args.model_name + ' accuracy- training and testing')
     plt.xlabel('no. of epochs')
     plt.legend()
-    plt.savefig(f'plots/{args.model_name}_acc.png')
+    plt.savefig(f'plots/{args.model_name}_{args.feedback_connections}_acc.png')
     plt.close()
 
 
