@@ -52,7 +52,7 @@ def load_data(args):
 
 def load_model(device, args):
     # load model
-    model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10)
+    model = CORnet(architecture=args.model_name, pretrained=args.pretrained, feedback_connections=args.feedback_connections, n_classes=10)
     if args.resume_training:
         ckpts = glob.glob(f'checkpoints/{args.model_name}_{args.feedback_connections}/*.pth')
         latest_ckpt = max(ckpts, key=os.path.getmtime)
@@ -177,6 +177,8 @@ def parse_args():
                         help='the name of the model to train')
     parser.add_argument('-feedback_connections', '--feedback_connections', default={}, type=str,
                         help='whether the model has feedback connections')
+    parser.add_argument('-pretrained', '--pretrained', default=True, type=bool,
+                        help='whether the training should be started from ImageNet pretraining or random initialization')
     parser.add_argument('-epochs', '--n_epochs', default=50, type=int,
                         help='number of total epochs to run')
     parser.add_argument('-batch_size', '--batch_size', default=32, type=int,
