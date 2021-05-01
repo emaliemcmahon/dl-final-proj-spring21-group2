@@ -103,9 +103,10 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
 
             scaler.scale(train_loss_batch).backward()
             scaler.step(optimizer)
+            scheduler.step()
             scaler.update()
 
-            total_loss_test.append(float(train_loss_batch.item()))
+            total_loss_train.append(float(train_loss_batch.item()))
 
             # calculate accuracy
             _, predicted = torch.max(output_batch.data, 1)
