@@ -52,7 +52,7 @@ def load_data(args):
 
 def load_model(device, args):
     # load model
-    model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10)
+    model = CORnet(architecture=args.model_name, pretrained=False, feedback_connections=args.feedback_connections, n_classes=10)
     if args.resume_training:
         ckpts = glob.glob(f'checkpoints/{args.model_name}_{args.feedback_connections}/*.pth')
         latest_ckpt = max(ckpts, key=os.path.getmtime)
