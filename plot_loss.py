@@ -5,19 +5,19 @@ import torch
 
 def plot_loss(args):
     # plotting the train and test loss and acc
-    train = np.load(f'plots/{args.model_name}_{args.feedback_connections}_train.npy', allow_pickle=True)
-    test = np.load(f'plots/{args.model_name}_{args.feedback_connections}_test.npy', allow_pickle=True)
+    loss = np.load(f'plots/{args.model_name}_{args.feedback_connections}_loss.npy', allow_pickle=True)
+    accuracy = np.load(f'plots/{args.model_name}_{args.feedback_connections}_accuracy.npy', allow_pickle=True)
 
-    plt.plot(train[0],label='train loss')
-    plt.plot(test[0],label='test loss')
+    plt.plot(loss[0],label='train loss')
+    plt.plot(loss[1],label='test loss')
     plt.title(args.model_name + ' loss- training and testing')
     plt.xlabel('no. of epochs')
     plt.legend()
     plt.savefig(f'plots/{args.model_name}_{args.feedback_connections}_loss.png')
     plt.close()
 
-    plt.plot(train[1],label='train acc')
-    plt.plot(test[1],label='test acc')
+    plt.plot(accuracy[0],label='train acc')
+    plt.plot(accuracy[1],label='test acc')
     plt.title(args.model_name + ' accuracy- training and testing')
     plt.xlabel('no. of epochs')
     plt.legend()

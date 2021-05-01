@@ -52,7 +52,7 @@ def load_data(args):
 
 def load_model(device, args):
     # load model
-    model = CORnet(architecture=args.model_name, pretrained=False, feedback_connections=args.feedback_connections, n_classes=10)
+    model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10)
     if args.resume_training:
         ckpts = glob.glob(f'checkpoints/{args.model_name}_{args.feedback_connections}/*.pth')
         latest_ckpt = max(ckpts, key=os.path.getmtime)
@@ -89,11 +89,8 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
     for epoch in range(start_epoch, args.n_epochs):
 
         model.train()
-        train_loss_epoch = 0.
         train_acc_epoch = 0.
-        train_correct = 0
         train_total = 0
-
         for i, (input_batch, label_batch) in tqdm(enumerate(trainloader, 0), total=n_batches, position=0, leave=True):
             input_batch = input_batch.to(device)
             label_batch = label_batch.to(device)
@@ -108,7 +105,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
             scaler.step(optimizer)
             scaler.update()
 
-            train_loss_epoch += train_loss_batch.item()
+            total_loss_test.append(float(train_loss_batch.item()))
 
             # calculate accuracy
             _, predicted = torch.max(output_batch.data, 1)
@@ -116,18 +113,12 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
             train_acc_epoch += (predicted.float() == label_batch.float()).sum()
             if i == 0 or i % 250 == 0 or i == (n_batches-1):
                 print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
-            if i == 10:
-                break
 
-        total_loss_train.append(train_loss_epoch/train_total)
         total_acc_train.append(float(train_acc_epoch/train_total))
 
         model.eval()
-        test_loss_epoch = 0.
         test_acc_epoch = 0.
-        test_correct = 0
         test_total = 0
-
         with torch.no_grad():
             for k, (input_batch, label_batch) in enumerate(testloader, 0):
                 input_batch = input_batch.to(device)
@@ -137,14 +128,13 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
                     output_batch = model(input_batch)
                     test_loss_batch = loss(output_batch, label_batch)
 
-                test_loss_epoch += test_loss_batch.item()
+                total_loss_test.append(float(test_loss_batch.item()))
 
                 # calculate accuracy
                 _, predicted = torch.max(output_batch.data, 1)
                 test_total += label_batch.size(0)
                 test_acc_epoch += (predicted.float() == label_batch.float()).sum()
 
-        total_loss_test.append(float(test_loss_epoch/test_total))
         total_acc_test.append(float(test_acc_epoch/test_total))
 
         print('For epoch %i train loss is %f' % (epoch, total_loss_train[-1]))
@@ -154,8 +144,8 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
         print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
 
 
-        np.save(f'plots/{args.model_name}_{args.feedback_connections}_train.npy', np.array([total_loss_train, total_acc_train]))
-        np.save(f'plots/{args.model_name}_{args.feedback_connections}_test.npy', np.array([total_loss_test, total_acc_test]))
+        np.save(f'plots/{args.model_name}_{args.feedback_connections}_loss.npy', np.array([total_loss_train, total_loss_test]))
+        np.save(f'plots/{args.model_name}_{args.feedback_connections}_accuracy.npy', np.array([total_acc_train, total_acc_test]))
         plot_loss(args)
         now = datetime.now()
         date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
