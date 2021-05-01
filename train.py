@@ -56,7 +56,7 @@ def load_model(device, args):
     if args.resume_training:
         ckpts = glob.glob(f'checkpoints/{args.model_name}_{args.feedback_connections}/*.pth')
         latest_ckpt = max(ckpts, key=os.path.getmtime)
-        print(f'picking up from {latest_ckpt} checkpoint')
+        print(f'picking up from {latest_ckpt}')
         model.load_state_dict(torch.load(latest_ckpt))
     model.to(device)
     scaler = torch.cuda.amp.GradScaler()
