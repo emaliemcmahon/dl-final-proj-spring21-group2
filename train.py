@@ -102,7 +102,8 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
                 train_loss_batch = loss(output_batch, label_batch)
 
             scaler.scale(train_loss_batch).backward()
-            scaler.step(scheduler)
+            scaler.step(optimizer)
+            scheduler.step()
             scaler.update()
 
             total_loss_train.append(float(train_loss_batch.item()))
