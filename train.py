@@ -103,8 +103,8 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
 
             scaler.scale(train_loss_batch).backward()
             scaler.step(optimizer)
-            scheduler.step()
             scaler.update()
+            scheduler.step()
 
             total_loss_train.append(float(train_loss_batch.item()))
 
@@ -114,8 +114,6 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
             train_acc_epoch += (predicted.float() == label_batch.float()).sum()
             if i == 0 or i % 250 == 0 or i == (n_batches-1):
                 print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
-            if i == 10:
-                break
 
         total_acc_train.append(float(train_acc_epoch/train_total))
 
@@ -147,7 +145,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
         print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
 
 
-        np.save(f'plots/{args.model_name}_{args.feedback_connections}_loss.npy', np.array([total_loss_train, total_loss_test]))
+        np.save(f'plots/{args.model_name}_{args.feedback_connections}_loss.npy', np.array([total_loss_train, total_loss_test], dtype=object))
         np.save(f'plots/{args.model_name}_{args.feedback_connections}_accuracy.npy', np.array([total_acc_train, total_acc_test]))
         plot_loss(args)
         now = datetime.now()
