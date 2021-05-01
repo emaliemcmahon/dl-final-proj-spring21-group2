@@ -217,8 +217,8 @@ def parse_args():
     return args
 
 def main():
-    np.random.seed(0)
-    torch.manual_seed(0)
+    np.random.seed(1)
+    torch.manual_seed(1)
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f'device: {device}')
