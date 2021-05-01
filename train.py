@@ -6,7 +6,7 @@
 import argparse
 from tqdm import tqdm
 from datetime import datetime
-import os, glob, pickle
+import os, glob, pickle, copy
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -170,6 +170,15 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
                 break
 
 
+def save_object(obj, filename):
+    with open(filename, 'wb') as output:  # Overwrites any existing file.
+        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
+
+def load_object(filename):
+    with open(filename, 'rb') as input:  # Overwrites any existing file.
+        obj = pickle.load(input)
+    return obj
+
 def parse_args():
     parser = argparse.ArgumentParser(description='CIFAR10 Training')
     parser.add_argument('-model', '--model_name', default='CORnet-Z', type=str,
@@ -193,16 +202,18 @@ def parse_args():
                         help='no. of epochs patience for early stopping ')
     parser.add_argument('-resume_training', '--resume_training', default=False, type=bool,
                         help='whether the training should be resumed')
-    args = parser.parse_args()
+    input_args = parser.parse_args()
+
+    if input_args.resume_training:
+        args = load_object(f'checkpoints/{args.model_name}_{args.feedback_connections}/hyperparameters.pkl')
+        args.resume_training = True
+    else:
+        args = copy.deepcopy(input_args)
 
     now = datetime.now()
     date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
     print(args)
     return args
-
-def save_object(obj, filename):
-    with open(filename, 'wb') as output:  # Overwrites any existing file.
-        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
 
 def main():
     np.random.seed(0)
