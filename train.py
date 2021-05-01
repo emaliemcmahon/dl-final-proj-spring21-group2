@@ -188,8 +188,8 @@ def parse_args():
     parser.add_argument('-momentum', '--momentum', default=.9, type=float, help='momentum')
     parser.add_argument('-decay', '--weight_decay', default=1e-4, type=float,
                         help='weight decay ')
-    parser.add_argument('-gamma', '--gamma', default=1, type=float,
-                        help='scheduler multiplication factor, default is no change in LR')
+    parser.add_argument('-gamma', '--gamma', default=0.1, type=float,
+                        help='scheduler multiplication factor')
     parser.add_argument('-patience', '--early_stop_patience', default=5, type=int,
                         help='no. of epochs patience for early stopping ')
     parser.add_argument('-resume_training', '--resume_training', default=False, type=bool,
