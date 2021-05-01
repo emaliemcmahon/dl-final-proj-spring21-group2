@@ -114,7 +114,12 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
             if i == 0 or i % 250 == 0 or i == (n_batches-1):
                 print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
         scheduler.step()
-        print(f'current LR: {scheduler.get_last_lr()[0]}')
+
+        #Save the current learning rate
+        cur_lr = scheduler.get_last_lr()[0]
+        print(f'current LR: {cur_lr}')
+        args.learning_rate = cur_lr
+        save_object(args, f'checkpoints/{args.model_name}_{args.feedback_connections}/hyperparameters.pkl')
 
         total_acc_train.append(float(train_acc_epoch/train_total))
 
