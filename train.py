@@ -116,11 +116,11 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
             train_acc_epoch += (predicted.float() == label_batch.float()).sum()
             if i == 0 or i % 250 == 0 or i == (n_batches-1):
                 print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
+            if i == 10:
+                break
 
         total_loss_train.append(train_loss_epoch/train_total)
         total_acc_train.append(float(train_acc_epoch/train_total))
-        if i == 10:
-            break
 
         # model.eval()
         test_loss_epoch = 0.
