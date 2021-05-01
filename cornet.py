@@ -210,39 +210,13 @@ class CORnet(nn.Module):
             device = torch.device(device)
             params = torch.load(state_dict_files[architecture], map_location=device)['state_dict']
 
-            if architecture == 'CORnet-Z':
-                for area_name in self.areas.keys():  # weights and biases only loaded for V1, V2, V4, IT
-                    self.areas[area_name].conv.weight = nn.Parameter(params['module.' + area_name + '.conv.weight'])
-                    self.areas[area_name].conv.bias = nn.Parameter(params['module.' + area_name + '.conv.bias'])
-            elif architecture == 'CORnet-S':
-                for area_name in self.areas.keys():
-                    if area_name == 'V1':
-                        layers = ['conv1', 'conv2']
-                    else:
-                        layers = ['conv_input', 'skip', 'conv1', 'conv2', 'conv3']
-                    for layer in layers:
-                        getattr(self.areas[area_name], layer).weight = nn.Parameter(params['module.' + area_name + '.' + layer + '.weight'])
-
-                    if area_name == 'V1':
-                        norms = ['norm1', 'norm2']
-                        n_norms = 0
-                    else:
-                        norms = ['norm_skip']
-                    if area_name == 'V2' or area_name == 'IT':
-                        n_norms = 2
-                    elif area_name == 'V4':
-                        n_norms = 4
-                    for x in ['1', '2', '3']:
-                        for i_norm in range(n_norms):
-                            norms.append('norm' + x + '_' + str(i_norm))
-
-                    for norm in norms:
-                        getattr(self.areas[area_name], norm).weight = nn.Parameter(params['module.' + area_name + '.' + norm + '.' + 'weight'])
-                        getattr(self.areas[area_name], norm).bias = nn.Parameter(params['module.' + area_name + '.' + norm + '.' + 'bias'])
-                        getattr(self.areas[area_name], norm).running_mean = params['module.' + area_name + '.' + norm + '.' + 'running_mean']
-                        getattr(self.areas[area_name], norm).running_var = params['module.' + area_name + '.' + norm + '.' + 'running_var']
-            else:
-                raise ValueError('only supports \'CORnet-Z\' and \'CORnet-S\'')
+            new_params = {}
+            for key, value in params.items():
+                new_key = key.split('.')
+                new_key[0] = 'areas'
+                new_key = '.'.join(new_key)
+                new_params[new_key] = value
+            self.load_state_dict(new_params, strict=False)
 
     def feedforward(self, x, activations_to_return=()):
         """
@@ -305,9 +279,12 @@ if __name__ == '__main__':
     torch.manual_seed(0)
 
     with torch.no_grad():
-        model = CORnet(architecture='CORnet-S', n_classes=10, feedback_connections=feedback_connections, pretrained=True, n_passes=1)
+        model = CORnet(architecture='CORnet-S', n_classes=10, feedback_connections=feedback_connections, pretrained=False, n_passes=1)
         try:
             print(model(torch.rand(1, 3, 224, 224)))
+            # print(model.areas['V2'].norm1_0.running_mean)
+            model.eval()
+            # print(model.areas['V2'].norm1_0.running_mean)
             print('model passes check')
         except:
             print('model fails check')
