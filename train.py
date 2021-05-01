@@ -198,14 +198,14 @@ def parse_args():
                         help='weight decay ')
     parser.add_argument('-gamma', '--gamma', default=1, type=float,
                         help='scheduler multiplication factor, default is no change in LR')
-    parser.add_argument('-patience', '--early_stop_patience', default=3, type=int,
+    parser.add_argument('-patience', '--early_stop_patience', default=5, type=int,
                         help='no. of epochs patience for early stopping ')
     parser.add_argument('-resume_training', '--resume_training', default=False, type=bool,
-                        help='whether the training should be resumed')
+                        help='whether the training should be resumed. If it is set to true, all of the hyperparameters are loaded from the previous model and input has no effect.')
     input_args = parser.parse_args()
 
     if input_args.resume_training:
-        args = load_object(f'checkpoints/{args.model_name}_{args.feedback_connections}/hyperparameters.pkl')
+        args = load_object(f'checkpoints/{input_args.model_name}_{input_args.feedback_connections}/hyperparameters.pkl')
         args.resume_training = True
     else:
         args = copy.deepcopy(input_args)
