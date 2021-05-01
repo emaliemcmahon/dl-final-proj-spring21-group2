@@ -55,8 +55,8 @@ def load_model(device, args):
     model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10)
     if args.resume_training:
         ckpts = glob.glob(f'checkpoints/{args.model_name}_{args.feedback_connections}/*.pth')
-        print(ckpts)
         latest_ckpt = max(ckpts, key=os.path.getctime)
+        print(cklatest_ckptpts)
         model.load_state_dict(torch.load(latest_ckpt))
     model.to(device)
     scaler = torch.cuda.amp.GradScaler()
