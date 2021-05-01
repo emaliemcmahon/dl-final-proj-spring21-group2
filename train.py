@@ -74,14 +74,15 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
                'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
     if args.resume_training:
-        loss = np.load(f'plots/{args.model_name}_{args.feedback_connections}_loss.npy', allow_pickle=True)
-        accuracy = np.load(f'plots/{args.model_name}_{args.feedback_connections}_accuracy.npy', allow_pickle=True)
+        total_loss_train = list(np.load(f'plots/{args.model_name}_{args.feedback_connections}_train_loss.npy', allow_pickle=True))
+        total_loss_test = list(np.load(f'plots/{args.model_name}_{args.feedback_connections}_test_loss.npy', allow_pickle=True))
 
-        total_loss_train = list(loss)
+        accuracy = np.load(f'plots/{args.model_name}_{args.feedback_connections}_accuracy.npy', allow_pickle=True)
         total_acc_train, total_acc_test = list(accuracy[0]), list(accuracy[1])
-        start_epoch = len(total_acc_train)
+
+        start_epoch = len(total_loss_test)
     else:
-        total_loss_train = []
+        total_loss_train, total_loss_test = [], []
         total_acc_train, total_acc_test = [], []
         start_epoch = 0
 
@@ -125,6 +126,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
 
         model.eval()
         test_acc_epoch = 0.
+        test_loss_epoch = 0.
         test_total = 0
         with torch.no_grad():
             for k, (input_batch, label_batch) in enumerate(testloader, 0):
@@ -133,12 +135,16 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
 
                 with torch.cuda.amp.autocast():
                     output_batch = model(input_batch)
+                    test_loss_batch = loss(output_batch, label_batch)
+
+                test_loss_epoch += test_loss_batch.item()
 
                 # calculate accuracy
                 _, predicted = torch.max(output_batch.data, 1)
                 test_total += label_batch.size(0)
                 test_acc_epoch += (predicted.float() == label_batch.float()).sum()
 
+        total_loss_test.append(float(test_loss_epoch/test_total))
         total_acc_test.append(float(test_acc_epoch/test_total))
 
         print('For epoch %i train loss is %f' % (epoch, total_loss_train[-1]))
@@ -147,7 +153,8 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
         print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
 
 
-        np.save(f'plots/{args.model_name}_{args.feedback_connections}_loss.npy', np.array(total_loss_train))
+        np.save(f'plots/{args.model_name}_{args.feedback_connections}_train_loss.npy', np.array(total_loss_train))
+        np.save(f'plots/{args.model_name}_{args.feedback_connections}_test_loss.npy', np.array(total_loss_test))
         np.save(f'plots/{args.model_name}_{args.feedback_connections}_accuracy.npy', np.array([total_acc_train, total_acc_test]))
         plot_loss(args)
         now = datetime.now()
