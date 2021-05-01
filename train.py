@@ -74,14 +74,14 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
                'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
     if args.resume_training:
-        train = np.load(f'plots/{args.model_name}_{args.feedback_connections}_train.npy', allow_pickle=True)
-        test = np.load(f'plots/{args.model_name}_{args.feedback_connections}_test.npy', allow_pickle=True)
+        loss = np.load(f'plots/{args.model_name}_{args.feedback_connections}_loss.npy', allow_pickle=True)
+        accuracy = np.load(f'plots/{args.model_name}_{args.feedback_connections}_accuracy.npy', allow_pickle=True)
 
-        total_loss_train, total_loss_test = list(train[0]), list(test[0])
-        total_acc_train, total_acc_test = list(train[1]), list(test[1])
-        start_epoch = len(total_loss_train)
+        total_loss_train = list(loss)
+        total_acc_train, total_acc_test = list(accuracy[0]), list(accuracy[1])
+        start_epoch = len(total_acc_train)
     else:
-        total_loss_train, total_loss_test = [], []
+        total_loss_train = []
         total_acc_train, total_acc_test = [], []
         start_epoch = 0
 
@@ -103,7 +103,6 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
 
             scaler.scale(train_loss_batch).backward()
             scaler.step(optimizer)
-            scheduler.step()
             scaler.update()
 
             total_loss_train.append(float(train_loss_batch.item()))
@@ -114,6 +113,8 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
             train_acc_epoch += (predicted.float() == label_batch.float()).sum()
             if i == 0 or i % 250 == 0 or i == (n_batches-1):
                 print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
+        scheduler.step()
+        print(f'current LR: {scheduler.get_lr()}')
 
         total_acc_train.append(float(train_acc_epoch/train_total))
 
@@ -127,9 +128,6 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
 
                 with torch.cuda.amp.autocast():
                     output_batch = model(input_batch)
-                    test_loss_batch = loss(output_batch, label_batch)
-
-                total_loss_test.append(float(test_loss_batch.item()))
 
                 # calculate accuracy
                 _, predicted = torch.max(output_batch.data, 1)
@@ -139,19 +137,18 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
         total_acc_test.append(float(test_acc_epoch/test_total))
 
         print('For epoch %i train loss is %f' % (epoch, total_loss_train[-1]))
-        print('For epoch %i test loss is %f' % (epoch, total_loss_test[-1]))
 
         print('For epoch %i train acc is %f' % (epoch, total_acc_train[-1]))
         print('For epoch %i test acc is %f' % (epoch, total_acc_test[-1]))
 
 
-        np.save(f'plots/{args.model_name}_{args.feedback_connections}_loss.npy', np.array([total_loss_train, total_loss_test], dtype=object))
+        np.save(f'plots/{args.model_name}_{args.feedback_connections}_loss.npy', np.array(total_loss_train))
         np.save(f'plots/{args.model_name}_{args.feedback_connections}_accuracy.npy', np.array([total_acc_train, total_acc_test]))
         plot_loss(args)
         now = datetime.now()
         date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
-        torch.save(model.state_dict(), 'checkpoints/%s_%s/%s_%s_%s_%s.pth' % (args.model_name,
-                   args.feedback_connections, args.model_name, args.feedback_connections, str(epoch).zfill(2), date))
+        torch.save(model.state_dict(), 'checkpoints/%s_%s/%s_%s_%s.pth' % (args.model_name,
+                   args.feedback_connections, args.model_name, args.feedback_connections, str(epoch).zfill(2)))
 
         # early stopping
         if epoch > 1 and total_loss_test[-1] > total_loss_test[-2]:
