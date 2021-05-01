@@ -212,6 +212,7 @@ def parse_args():
 
     now = datetime.now()
     date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
+    print(date)
     print(args)
     return args
 
