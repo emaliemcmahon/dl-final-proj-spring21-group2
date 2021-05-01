@@ -206,6 +206,10 @@ def parse_args():
     print(f'number of epochs: {args.n_epochs}')
     return args
 
+def save_object(obj, filename):
+    with open(filename, 'wb') as output:  # Overwrites any existing file.
+        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
+
 def main():
     np.random.seed(0)
     torch.manual_seed(0)
@@ -215,6 +219,7 @@ def main():
     device = torch.device(device)
 
     args = parse_args()
+    save_object(args, f'checkpoints/{args.model_name}_{args.feedback_connections}/hyperparameters.pkl')
     trainloader, n_batches, testloader = load_data(args)
     model, scaler, loss, optimizer, scheduler = load_model(device, args)
     train(device, args, trainloader, n_batches, testloader, model, scaler, loss, optimizer, scheduler)
