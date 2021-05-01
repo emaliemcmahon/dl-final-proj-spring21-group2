@@ -10,7 +10,7 @@ def plot_loss(args):
 
     plt.plot(loss,label='train loss')
     plt.title(args.model_name + ' training loss')
-    plt.xlabel('no. of epochs')
+    plt.xlabel('no. of minibatches')
     plt.legend()
     plt.savefig(f'plots/{args.model_name}_{args.feedback_connections}_loss.png')
     plt.close()
