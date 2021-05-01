@@ -9,8 +9,7 @@ def plot_loss(args):
     accuracy = np.load(f'plots/{args.model_name}_{args.feedback_connections}_accuracy.npy', allow_pickle=True)
 
     plt.plot(loss[0],label='train loss')
-    plt.plot(loss[1],label='test loss')
-    plt.title(args.model_name + ' loss- training and testing')
+    plt.title(args.model_name + ' training loss')
     plt.xlabel('no. of epochs')
     plt.legend()
     plt.savefig(f'plots/{args.model_name}_{args.feedback_connections}_loss.png')
