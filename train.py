@@ -119,8 +119,10 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
 
         total_loss_train.append(train_loss_epoch/train_total)
         total_acc_train.append(float(train_acc_epoch/train_total))
+        if i == 10:
+            break
 
-        model.eval()
+        # model.eval()
         test_loss_epoch = 0.
         test_acc_epoch = 0.
         test_correct = 0
