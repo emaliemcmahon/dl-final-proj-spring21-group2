@@ -57,9 +57,8 @@ def load_model(device, args):
         ckpts = glob.glob(f'checkpoints/{args.model_name}_{args.feedback_connections}/*.pth')
         print(ckpts)
         latest_ckpt = max(ckpts, key=os.path.getctime)
-        model.load_state_dict(torch.load(latest_ckpt)).to(device)
-    else:
-        model.to(device)
+        model.load_state_dict(torch.load(latest_ckpt))
+    model.to(device)
     scaler = torch.cuda.amp.GradScaler()
     loss = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
@@ -198,11 +197,7 @@ def parse_args():
 
     now = datetime.now()
     date = f'{now.month}_{now.day}_{now.year}_{now.hour}_{now.minute}'
-    print('date: %s' % (date))
-    print(f'model: {args.model_name}')
-    print(f'feedback: {args.feedback_connections}')
-    print(f'batch_size: {args.batch_size}')
-    print(f'number of epochs: {args.n_epochs}')
+    print(args)
     return args
 
 def save_object(obj, filename):
