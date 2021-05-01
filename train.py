@@ -55,8 +55,8 @@ def load_model(device, args):
     model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10)
     if args.resume_training:
         ckpts = glob.glob(f'checkpoints/{args.model_name}_{args.feedback_connections}/*.pth')
-        latest_ckpt = max(ckpts, key=os.path.getctime)
-        print(latest_ckpt)
+        latest_ckpt = max(ckpts, key=os.path.getmtime)
+        print(f'picking up from latest_ckpt checkpoint')
         model.load_state_dict(torch.load(latest_ckpt))
     model.to(device)
     scaler = torch.cuda.amp.GradScaler()
@@ -187,8 +187,8 @@ def parse_args():
     parser.add_argument('-momentum', '--momentum', default=.9, type=float, help='momentum')
     parser.add_argument('-decay', '--weight_decay', default=1e-4, type=float,
                         help='weight decay ')
-    parser.add_argument('-gamma', '--gamma', default=0.1, type=float,
-                        help='scheduler multiplication factor')
+    parser.add_argument('-gamma', '--gamma', default=1, type=float,
+                        help='scheduler multiplication factor, default is no change in LR')
     parser.add_argument('-patience', '--early_stop_patience', default=3, type=int,
                         help='no. of epochs patience for early stopping ')
     parser.add_argument('-resume_training', '--resume_training', default=False, type=bool,
