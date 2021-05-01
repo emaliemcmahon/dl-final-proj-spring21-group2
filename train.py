@@ -79,7 +79,7 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
 
         total_loss_train, total_loss_test = list(train[0]), list(test[0])
         total_acc_train, total_acc_test = list(train[1]), list(test[1])
-        start_epoch = len(total_loss_train) - 1
+        start_epoch = len(total_loss_train)
     else:
         total_loss_train, total_loss_test = [], []
         total_acc_train, total_acc_test = [], []
