@@ -6,6 +6,8 @@
 import argparse
 from tqdm import tqdm
 from datetime import datetime
+import glob
+import os
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -51,7 +53,13 @@ def load_data(args):
 
 def load_model(device, args):
     # load model
-    model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10).to(device)
+    model = CORnet(architecture=args.model_name, pretrained=True, feedback_connections=args.feedback_connections, n_classes=10)
+    if args.resume_training:
+        ckpts = glob.glob(f'plots/{args.model_name}_{args.feedback_connections}/*.pth')
+        latest_ckpt = max(ckpts, key=os.path.getctime)
+        model.load_state_dict(torch.load(latest_ckpt)).to(device)
+    else:
+        model.to(device)
     scaler = torch.cuda.amp.GradScaler()
     loss = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
@@ -65,11 +73,21 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
     # Implement early stopping
     classes = ('plane', 'car', 'bird', 'cat',
                'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-    count = 0
-    total_loss_train, total_loss_test = [], []
-    total_acc_train, total_acc_test = [], []
 
-    for epoch in range(args.n_epochs):
+    if args.resume_training:
+        train = np.load(f'plots/{args.model_name}_{args.feedback_connections}_train.npy', allow_pickle=True)
+        test = np.load(f'plots/{args.model_name}_{args.feedback_connections}_test.npy', allow_pickle=True)
+
+        total_loss_train, total_loss_test = list(train[0]), list(test[0])
+        total_acc_train, total_acc_test = list(train[1]), list(test[1])
+        start_epoch = len(total_loss_train) - 1
+    else:
+        total_loss_train, total_loss_test = [], []
+        total_acc_train, total_acc_test = [], []
+        start_epoch = 0
+
+    patience_counter = 0
+    for epoch in range(start_epoch, args.n_epochs):
 
         model.train()
         train_loss_epoch = 0.
@@ -97,12 +115,8 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
             _, predicted = torch.max(output_batch.data, 1)
             train_total += label_batch.size(0)
             train_acc_epoch += (predicted.float() == label_batch.float()).sum()
-            if i == 0 or i % 150 == 0 or i == (n_batches-1):
+            if i == 0 or i % 250 == 0 or i == (n_batches-1):
                 print('For epoch %i, batch %i train loss is %f' % (epoch, i, train_loss_batch.float()))
-                #true_class = classes[torch.argmax(label_batch)]
-                #print(f'True class: {true_class}')
-                #predicted_class = classes[torch.argmax(output_batch[0,:])]
-                #print(f'Predicted class: {predicted_class}')
 
         total_loss_train.append(train_loss_epoch/train_total)
         total_acc_train.append(float(train_acc_epoch/train_total))
@@ -149,10 +163,10 @@ def train(device, args, trainloader, n_batches, testloader, model, scaler, loss,
 
         # early stopping
         if epoch > 1 and total_loss_test[-1] > total_loss_test[-2]:
-            if count < args.early_stop_patience:
-                count += 1
+            if patience_counter < args.early_stop_patience:
+                patience_counter += 1
             else:
-                count = 0
+                patience_counter = 0
                 print("Stopping early bec loss has not decreased for last %i epochs" % (args.early_stop_patience))
                 break
 
@@ -178,6 +192,8 @@ def parse_args():
                         help='scheduler multiplication factor')
     parser.add_argument('-patience', '--early_stop_patience', default=3, type=int,
                         help='no. of epochs patience for early stopping ')
+    parser.add_argument('-resume_training', '--resume_training', default=False, type=bool,
+                        help='whether the training should be resumed')
     args = parser.parse_args()
 
     now = datetime.now()
