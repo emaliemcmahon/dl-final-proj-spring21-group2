@@ -279,12 +279,9 @@ if __name__ == '__main__':
     torch.manual_seed(0)
 
     with torch.no_grad():
-        model = CORnet(architecture='CORnet-S', n_classes=10, feedback_connections=feedback_connections, pretrained=False, n_passes=1)
+        model = CORnet(architecture='CORnet-S', n_classes=10, feedback_connections=feedback_connections, pretrained=True, n_passes=1)
         try:
             print(model(torch.rand(1, 3, 224, 224)))
-            # print(model.areas['V2'].norm1_0.running_mean)
-            model.eval()
-            # print(model.areas['V2'].norm1_0.running_mean)
             print('model passes check')
         except:
             print('model fails check')
