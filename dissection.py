@@ -8,13 +8,17 @@ def get_feedback_weights(model):
 
     for receiver_name, giver_names in model.inverted_feedback_connections.items():
         feedback_weights[receiver_name] = {}
+        
+        input_name = model.sequence[model.sequence.index(receiver_name) - 1]
+        feedback_weights[receiver_name][input_name] = model.feedback[receiver_name].weight[:, -model.sizes[receiver_name]['input'][1]:, :, :].squeeze().cpu().detach().numpy()
+        
         start = 0
         end = 0
         for giver_name in giver_names:
             end += model.sizes[giver_name]['output'][1]
             feedback_weights[receiver_name][giver_name] = model.feedback[receiver_name].weight[:, start:end, :, :].squeeze().cpu().detach().numpy()
             start = end
-
+        
     return feedback_weights
 
 
@@ -44,7 +48,7 @@ if __name__ == '__main__':
     from cornet import CORnet
     
     model = CORnet(architecture='CORnet-Z', n_classes=10, feedback_connections='all', pretrained=True, n_passes=1)
-
+    
     try:
         feedback_weights = get_feedback_weights(model)
         plot_feedback_weights(feedback_weights)
