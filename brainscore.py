@@ -3,6 +3,7 @@ import argparse
 from datetime import datetime
 import torch
 
+import brainscore
 from brainscore import score_model
 from cornet import CORnet
 
