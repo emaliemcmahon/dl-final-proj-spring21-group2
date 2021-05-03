@@ -1,4 +1,5 @@
 import functools
+import argparse
 
 from brainscore import score_model
 
@@ -31,7 +32,7 @@ def score_on_benchmark(model):
     # in this case used public benchmark w/neural recordings in macaque IT
     #   from Majaj, Hong et al. 2015
     #   neural predictivity metric based on PLS regression
-    score = score_model(model_identifier=model.identifier, 
+    score = score_model(model_identifier=model.identifier,
                         model=model,
                         benchmark_identifier='dicarlo.MajajHong2015public.IT-pls')
     print(score)
@@ -41,3 +42,13 @@ def score_on_benchmark(model):
     print(f"score: {center.values:.3f}+-{error.values:.3f}")
     """
     return score
+
+
+def main():
+    args = parse_args()
+    
+
+if __name__ == "__main__":
+    main()
+
+
