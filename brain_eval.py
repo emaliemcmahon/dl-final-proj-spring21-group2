@@ -3,6 +3,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 import torch
+import importlib
 
 from brainscore import score_model
 from cornet import CORnet
@@ -30,7 +31,7 @@ def score_on_benchmark(model, benchmark):
     activations_model = PytorchWrapper(identifier='my-model', model=model, preprocessing=preprocessing)
 
     # map layers onto cortical regions using standard commitments
-    model = CORnetCommitment(identifier='CORnet-Z', activations_model=base_models.cornet('CORnet-Z'),
+    model = CORnetCommitment(identifier='CORnet-Z', activations_model=cornet('CORnet-Z'),
                             layers=[f'{region}.output-t0' for region in ['V1', 'V2', 'V4', 'IT']] +
                                    ['decoder.avgpool-t0'],
                             time_mapping={
