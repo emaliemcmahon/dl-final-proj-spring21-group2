@@ -89,7 +89,7 @@ def main():
 
     # run brain score
     print(f'benchmark: {args.benchmark}')
-    score_on_benchmark(model, args.benchmark, args.layers)
+    score_on_benchmark(model, args.benchmark)
 
 
 if __name__ == "__main__":
