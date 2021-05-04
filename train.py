@@ -13,7 +13,6 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-from matplotlib import pyplot as plt
 from cornet import CORnet
 from plot_loss import plot_loss
 
@@ -221,6 +220,9 @@ def parse_args():
     return args
 
 def main():
+
+    args = parse_args()
+
     np.random.seed(1)
     torch.manual_seed(1)
 
@@ -228,7 +230,6 @@ def main():
     print(f'device: {device}')
     device = torch.device(device)
 
-    args = parse_args()
     save_object(args, f'checkpoints/{args.model_name}_{args.feedback_connections}/hyperparameters.pkl')
     trainloader, n_batches, testloader = load_data(args)
     model, scaler, loss, optimizer, scheduler = load_model(device, args)
