@@ -12,7 +12,7 @@ from model_tools.activations.pytorch import PytorchWrapper
 from model_tools.brain_transformation import ModelCommitment
 
 from candidate_models.model_commitments.cornets import CORnetCommitment
-from candidate_models.base_models import cornet
+import candidate_models.base_models as base_models
 
 # to use, make sure have brainscore downloaded: pip install git+https://github.com/brain-score/brain-score 
 # to use result caching, make sure have downloaded: pip install git+https://github.com/mschrimpf/result_caching
@@ -30,7 +30,7 @@ def score_on_benchmark(model, benchmark):
     activations_model = PytorchWrapper(identifier='my-model', model=model, preprocessing=preprocessing)
 
     # map layers onto cortical regions using standard commitments
-    model = CORnetCommitment(identifier='CORnet-Z', activations_model=cornet('CORnet-Z'),
+    model = CORnetCommitment(identifier='CORnet-Z', activations_model=base_models.cornet('CORnet-Z'),
                             layers=[f'{region}.output-t0' for region in ['V1', 'V2', 'V4', 'IT']] +
                                    ['decoder.avgpool-t0'],
                             time_mapping={
