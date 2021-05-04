@@ -85,6 +85,7 @@ def main():
     model = CORnet(pretrained=True, architecture=args.model_name, feedback_connections='all', n_classes=10)
     path = args.checkpoint_path
     model.load_state_dict(torch.load(path))
+    print(model)
     model = model.to(device)
 
     # run brain score
