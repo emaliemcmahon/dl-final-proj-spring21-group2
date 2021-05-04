@@ -31,7 +31,7 @@ def score_on_benchmark(model, benchmark):
     activations_model = PytorchWrapper(identifier='my-model', model=model, preprocessing=preprocessing)
 
     # map layers onto cortical regions using standard commitments
-    model = CORnetCommitment(identifier='CORnet-Z', activations_model=cornet('CORnet-Z'),
+    model = CORnetCommitment(identifier='CORnet-Z', activations_model=activations_model,
                             layers=[f'{region}.output-t0' for region in ['V1', 'V2', 'V4', 'IT']] +
                                    ['decoder.avgpool-t0'],
                             time_mapping={
@@ -87,7 +87,6 @@ def main():
     model = CORnet(pretrained=True, architecture=args.model_name, feedback_connections='all', n_classes=10)
     path = args.checkpoint_path
     model.load_state_dict(torch.load(path))
-    print(model)
     model = model.to(device)
 
     # run brain score
