@@ -12,7 +12,7 @@ from model_tools.activations.pytorch import PytorchWrapper
 from model_tools.brain_transformation import ModelCommitment
 
 from candidate_models.model_commitments.cornets import CORnetCommitment
-import candidate_models.base_models as base_models
+from candidate_models.base_models import cornet
 
 # to use, make sure have brainscore downloaded: pip install git+https://github.com/brain-score/brain-score 
 # to use result caching, make sure have downloaded: pip install git+https://github.com/mschrimpf/result_caching
