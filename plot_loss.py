@@ -5,12 +5,22 @@ import torch
 
 def plot_loss(args):
     # plotting the train and test loss and acc
-    loss = np.load(f'plots/{args.model_name}_{args.feedback_connections}_train_loss.npy', allow_pickle=True)
+    train_loss = np.load(f'plots/{args.model_name}_{args.feedback_connections}_train_loss.npy', allow_pickle=True)
+    test_loss = np.load(f'plots/{args.model_name}_{args.feedback_connections}_test_loss.npy', allow_pickle=True)
     accuracy = np.load(f'plots/{args.model_name}_{args.feedback_connections}_accuracy.npy', allow_pickle=True)
 
-    plt.plot(loss,label='train loss')
+    plt.plot(train_loss,label='train loss')
     plt.title(args.model_name + ' training loss')
     plt.xlabel('no. of minibatches')
+    plt.legend()
+    plt.savefig(f'plots/{args.model_name}_{args.feedback_connections}_batchloss.png')
+    plt.close()
+
+    train_loss = train_loss.reshape((len(test_loss), int(len(train_loss)/len(test_loss)))).mean(axis=1)
+    plt.plot(train_loss,label='train loss')
+    plt.plot(test_loss,label='test loss')
+    plt.title(args.model_name + ' loss- training and testing')
+    plt.xlabel('no. of epochs')
     plt.legend()
     plt.savefig(f'plots/{args.model_name}_{args.feedback_connections}_loss.png')
     plt.close()
