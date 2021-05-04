@@ -21,7 +21,7 @@ from candidate_models.model_commitments.cornets import CORnetCommitment
 # @store()
 
 
-def score_on_benchmark(model, benchmark, layers):
+def score_on_benchmark(model, benchmark):
     # ImageNet mean and image size 224 x 224
     preprocessing = functools.partial(load_preprocess_images, image_size=224)
 
@@ -65,7 +65,6 @@ def parse_args():
                          help='the file path the desired checkpoint is stored')
     parser.add_argument('-b', '--benchmark', default='dicarlo.MajajHong2015public.IT-pls', type=str,
                         help='the name of benchmark for brain score')
-    parser.add_argument('-l','--layers', nargs='+', help='<Required> Set flag', required=True)
     args = parser.parse_args()
 
 
@@ -90,7 +89,6 @@ def main():
 
     # run brain score
     print(f'benchmark: {args.benchmark}')
-    print(f'layers: {args.layers}')
     score_on_benchmark(model, args.benchmark, args.layers)
 
 
