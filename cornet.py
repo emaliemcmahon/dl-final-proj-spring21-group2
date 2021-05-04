@@ -45,14 +45,18 @@ class CORblock_S(nn.Module):
     """
     scale = 4  # scale of the bottleneck convolution channels
 
-    def __init__(self, in_channels, out_channels, times=1):
+    def __init__(self, in_channels, out_channels, times=1, batchnorm=True):
         super().__init__()
+
+        self.batchnorm = batchnorm
 
         self.times = times
 
         self.conv_input = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
         self.skip = nn.Conv2d(out_channels, out_channels, kernel_size=1, stride=2, bias=False)
-        self.norm_skip = nn.BatchNorm2d(out_channels)
+        
+        if self.batchnorm:
+            self.norm_skip = nn.BatchNorm2d(out_channels)
 
         self.conv1 = nn.Conv2d(out_channels, out_channels * self.scale, kernel_size=1, bias=False)
         self.nonlin1 = nn.ReLU(inplace=True)
@@ -63,33 +67,39 @@ class CORblock_S(nn.Module):
         self.conv3 = nn.Conv2d(out_channels * self.scale, out_channels, kernel_size=1, bias=False)
         self.nonlin3 = nn.ReLU(inplace=True)
 
-        # need BatchNorm for each time step for training to work well
-        for t in range(self.times):
-            setattr(self, f'norm1_{t}', nn.BatchNorm2d(out_channels * self.scale))
-            setattr(self, f'norm2_{t}', nn.BatchNorm2d(out_channels * self.scale))
-            setattr(self, f'norm3_{t}', nn.BatchNorm2d(out_channels))
+        if self.batchnorm:
+            # need BatchNorm for each time step for training to work well
+            for t in range(self.times):
+                setattr(self, f'norm1_{t}', nn.BatchNorm2d(out_channels * self.scale))
+                setattr(self, f'norm2_{t}', nn.BatchNorm2d(out_channels * self.scale))
+                setattr(self, f'norm3_{t}', nn.BatchNorm2d(out_channels))
 
     def forward(self, inp):
         x = self.conv_input(inp)
 
         for t in range(self.times):
             if t == 0:
-                skip = self.norm_skip(self.skip(x))
+                skip = self.skip(x)
+                if self.batchnorm:
+                    skip = self.norm_skip
                 self.conv2.stride = (2, 2)
             else:
                 skip = x
                 self.conv2.stride = (1, 1)
 
             x = self.conv1(x)
-            x = getattr(self, f'norm1_{t}')(x)
+            if self.batchnorm:
+                x = getattr(self, f'norm1_{t}')(x)
             x = self.nonlin1(x)
 
             x = self.conv2(x)
-            x = getattr(self, f'norm2_{t}')(x)
+            if self.batchnorm:
+                x = getattr(self, f'norm2_{t}')(x)
             x = self.nonlin2(x)
 
             x = self.conv3(x)
-            x = getattr(self, f'norm3_{t}')(x)
+            if self.batchnorm:
+                x = getattr(self, f'norm3_{t}')(x)
 
             x += skip
             x = self.nonlin3(x)
@@ -101,7 +111,7 @@ class CORnet(nn.Module):
     """
     CORnet is a computational model of the visual cortex. Here, we enhance CORnet by implementing feedback connections.
     """
-    def __init__(self, architecture='CORnet-Z', n_classes=10, pretrained=True, feedback_connections={}, n_passes=1):
+    def __init__(self, architecture='CORnet-Z', n_classes=10, pretrained=True, feedback_connections={}, n_passes=1, batchnorm=False):
         """
         architecture: 'CORnet-Z' or 'CORnet-S'
         n_classes: number of output classes
@@ -116,6 +126,7 @@ class CORnet(nn.Module):
         self.input_size = (1, 3, 224, 224)
 
         self.architecture = architecture
+        self.batchnorm = batchnorm
         self.n_classes = n_classes
         self.pretrained = pretrained
 
@@ -130,7 +141,7 @@ class CORnet(nn.Module):
         self.inverted_feedback_connections = invert_dictionary(feedback_connections)
         self.n_passes = n_passes
 
-        self.areas = self.create_areas(self.architecture)
+        self.areas = self.create_areas(self.architecture, self.batchnorm)
         self.decoder = self.create_decoder(self.n_classes)
         self.sizes = self.compute_sizes(self.input_size)
         self.feedback = self.create_feedback(self.sizes, self.feedback_connections, self.inverted_feedback_connections)
@@ -140,7 +151,7 @@ class CORnet(nn.Module):
         self.sequence = ['input'] + list(self.areas.keys())
 
     @staticmethod
-    def create_areas(architecture):
+    def create_areas(architecture, batchnorm):
         """
         creates the convolutional architecture of the CORnet, exactly as in CORnet-Z and CORnet-S
         """
@@ -152,20 +163,34 @@ class CORnet(nn.Module):
                 'IT': CORblock_Z(256, 512),
             })
         elif architecture == 'CORnet-S':
-            areas = nn.ModuleDict({
-                'V1': nn.Sequential(OrderedDict([
-                    ('conv1', nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)),
-                    ('norm1', nn.BatchNorm2d(64)),
-                    ('nonlin1', nn.ReLU(inplace=True)),
-                    ('pool', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
-                    ('conv2', nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)),
-                    ('norm2', nn.BatchNorm2d(64)),
-                    ('nonlin2', nn.ReLU(inplace=True)),
-                ])),
-                'V2': CORblock_S(64, 128, times=2),
-                'V4': CORblock_S(128, 256, times=4),
-                'IT': CORblock_S(256, 512, times=2),
-            })
+            if batchnorm:
+                areas = nn.ModuleDict({
+                    'V1': nn.Sequential(OrderedDict([
+                        ('conv1', nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)),
+                        ('norm1', nn.BatchNorm2d(64)),
+                        ('nonlin1', nn.ReLU(inplace=True)),
+                        ('pool', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
+                        ('conv2', nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)),
+                        ('norm2', nn.BatchNorm2d(64)),
+                        ('nonlin2', nn.ReLU(inplace=True)),
+                    ])),
+                    'V2': CORblock_S(64, 128, times=2),
+                    'V4': CORblock_S(128, 256, times=4),
+                    'IT': CORblock_S(256, 512, times=2),
+                })
+            else:
+                areas = nn.ModuleDict({
+                    'V1': nn.Sequential(OrderedDict([
+                        ('conv1', nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)),
+                        ('nonlin1', nn.ReLU(inplace=True)),
+                        ('pool', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
+                        ('conv2', nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)),
+                        ('nonlin2', nn.ReLU(inplace=True)),
+                    ])),
+                    'V2': CORblock_S(64, 128, times=2, batchnorm=False),
+                    'V4': CORblock_S(128, 256, times=4, batchnorm=False),
+                    'IT': CORblock_S(256, 512, times=2, batchnorm=False),
+                })
         else:
             raise ValueError('allowed architectures are \'CORnet-Z\' and \'CORnet-S\'')
         return areas
@@ -279,7 +304,7 @@ if __name__ == '__main__':
     torch.manual_seed(0)
 
     with torch.no_grad():
-        model = CORnet(architecture='CORnet-S', n_classes=10, feedback_connections=feedback_connections, pretrained=True, n_passes=1)
+        model = CORnet(architecture='CORnet-S', n_classes=10, feedback_connections=feedback_connections, pretrained=True, n_passes=1, batchnorm=False)
         try:
             print(model(torch.rand(1, 3, 224, 224)))
             print('model passes check')

@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 
+
 def get_feedback_weights(model):
 
     feedback_weights = {}
