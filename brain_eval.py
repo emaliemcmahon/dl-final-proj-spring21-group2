@@ -76,7 +76,7 @@ def main():
     print(f'model: {args.model_name}')
     model = CORnet(pretrained=True, architecture=args.model_name, feedback_connections='all', n_classes=10)
     # path = args.checkpoint_path
-    path = 'CORnet-Z_{}_15.pth'
+    path = 'CORnet-Z_all_16.pth'
     model.load_state_dict(torch.load(path))
     model = model.to(device)
 
