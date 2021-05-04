@@ -11,6 +11,8 @@ from model_tools.activations.pytorch import load_preprocess_images
 from model_tools.activations.pytorch import PytorchWrapper
 from model_tools.brain_transformation import ModelCommitment
 
+from candidate_models.model_commitments.cornets import CORnetCommitment
+
 # to use, make sure have brainscore downloaded: pip install git+https://github.com/brain-score/brain-score 
 # to use result caching, make sure have downloaded: pip install git+https://github.com/mschrimpf/result_caching
 # to use model_tools, download library: pip install "candidate_models @ git+https://github.com/brain-score/candidate_models"
@@ -27,10 +29,16 @@ def score_on_benchmark(model, benchmark, layers):
     activations_model = PytorchWrapper(identifier='my-model', model=model, preprocessing=preprocessing)
 
     # map layers onto cortical regions using standard commitments
-    model = ModelCommitment(identifier='my-model',
-                            activations_model=activations_model,
-                            # TODO figure out which layers we want
-                            layers=layers)
+    model = CORnetCommitment(identifier='CORnet-Z', activations_model=activations_model,
+                            layers=[f'{region}.output-t0' for region in ['V1', 'V2', 'V4', 'IT']] +
+                                   ['decoder.avgpool-t0'],
+                            time_mapping={
+                                'V1': {0: (50, 150)},
+                                'V2': {0: (70, 170)},
+                                'V4': {0: (90, 190)},
+                                'IT': {0: (100, 200)},
+                            })
+    print(model)
 
     # score activation model on given benchmark
     # in this case used public benchmark w/neural recordings in macaque IT
@@ -76,7 +84,6 @@ def main():
     # load model
     print(f'model: {args.model_name}')
     model = CORnet(pretrained=True, architecture=args.model_name, feedback_connections='all', n_classes=10)
-    # path = args.checkpoint_path
     path = args.checkpoint_path
     model.load_state_dict(torch.load(path))
     model = model.to(device)
