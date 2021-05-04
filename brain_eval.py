@@ -19,7 +19,7 @@ from model_tools.brain_transformation import ModelCommitment
 # @store()
 
 
-def score_on_benchmark(model, benchmark):
+def score_on_benchmark(model, benchmark, layers):
     # ImageNet mean and image size 224 x 224
     preprocessing = functools.partial(load_preprocess_images, image_size=224)
 
@@ -30,7 +30,7 @@ def score_on_benchmark(model, benchmark):
     model = ModelCommitment(identifier='my-model',
                             activations_model=activations_model,
                             # TODO figure out which layers we want
-                            layers=['conv1', 'relu1', 'relu2'])
+                            layers=layers)
 
     # score activation model on given benchmark
     # in this case used public benchmark w/neural recordings in macaque IT
@@ -53,10 +53,11 @@ def parse_args():
     # read in model to be loaded and the .pth for parameters in checkpoint
     parser.add_argument('-m', '--model_name', default='CORnet-Z', type=str,
                         help='the name of the model to train')
-    # parser.add_argument('-c', '--checkpoint_path',
-    #                     help='the file path the desired checkpoint is stored')
+    parser.add_argument('-c', '--checkpoint_path', type=str,
+                         help='the file path the desired checkpoint is stored')
     parser.add_argument('-b', '--benchmark', default='dicarlo.MajajHong2015public.IT-pls', type=str,
                         help='the name of benchmark for brain score')
+    parser.add_argument('-l','--layers', nargs='+', help='<Required> Set flag', required=True)
     args = parser.parse_args()
 
 
@@ -76,12 +77,14 @@ def main():
     print(f'model: {args.model_name}')
     model = CORnet(pretrained=True, architecture=args.model_name, feedback_connections='all', n_classes=10)
     # path = args.checkpoint_path
-    path = 'CORnet-Z_all_16.pth'
+    path = args.checkpoint_path
     model.load_state_dict(torch.load(path))
     model = model.to(device)
 
     # run brain score
-    score_on_benchmark(model, args.benchmark)
+    print(f'benchmark: {args.benchmark}')
+    print(f'layers: {args.layers}')
+    score_on_benchmark(model, args.benchmark, args.layers)
 
 
 if __name__ == "__main__":
