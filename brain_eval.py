@@ -23,7 +23,7 @@ from candidate_models.base_models import cornet
 # @store()
 
 
-def score_on_benchmark(model, benchmark):
+def score_on_benchmark(model, benchmark, layers):
     # ImageNet mean and image size 224 x 224
     preprocessing = functools.partial(load_preprocess_images, image_size=224)
 
@@ -32,15 +32,13 @@ def score_on_benchmark(model, benchmark):
 
     # map layers onto cortical regions using standard commitments
     model = CORnetCommitment(identifier='CORnet-Z', activations_model=activations_model,
-                            layers=[f'{region}.output-t0' for region in ['V1', 'V2', 'V4', 'IT']] +
-                                   ['decoder.avgpool-t0'],
+                            layers=layers,
                             time_mapping={
                                 'V1': {0: (50, 150)},
                                 'V2': {0: (70, 170)},
                                 'V4': {0: (90, 190)},
                                 'IT': {0: (100, 200)},
                             })
-    print(model)
 
     # score activation model on given benchmark
     # in this case used public benchmark w/neural recordings in macaque IT
@@ -67,6 +65,8 @@ def parse_args():
                          help='the file path the desired checkpoint is stored')
     parser.add_argument('-b', '--benchmark', default='dicarlo.MajajHong2015public.IT-pls', type=str,
                         help='the name of benchmark for brain score')
+    parser.add_argument('-l', '--layers', default=None, type=str, nargs='+',
+                        help='the specified layers for activation')         
     args = parser.parse_args()
 
 
@@ -91,7 +91,8 @@ def main():
 
     # run brain score
     print(f'benchmark: {args.benchmark}')
-    score_on_benchmark(model, args.benchmark)
+    print(f'layers: {args.layers}')
+    score_on_benchmark(model, args.benchmark, args.layers)
 
 
 if __name__ == "__main__":
