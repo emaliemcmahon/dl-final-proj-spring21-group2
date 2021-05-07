@@ -10,7 +10,7 @@ def plot_loss(args):
     elif args.model_name == 'CORnet-S':
         feedback = 'Local recurrence'
     else:
-        feeback = 'Feedforward'
+        feedback = 'Feedforward'
 
     train_loss = np.load(f'plots/{args.model_name}_{args.feedback_connections}_train_loss.npy', allow_pickle=True)
     test_loss = np.load(f'plots/{args.model_name}_{args.feedback_connections}_test_loss.npy', allow_pickle=True)
