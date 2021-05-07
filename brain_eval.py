@@ -20,23 +20,16 @@ from candidate_models.base_models import cornet
 # to use model_tools, download library: pip install "candidate_models @ git+https://github.com/brain-score/candidate_models"
 
 # uncomment next line for result caching
-@store()
 def score_on_benchmark(model, model_name, benchmark, layers):
     # ImageNet mean and image size 224 x 224
     preprocessing = functools.partial(load_preprocess_images, image_size=224)
 
     # convert model to activations model --> extract activations from any layer
-    activations_model = PytorchWrapper(identifier='my-model', model=model, preprocessing=preprocessing)
+    activations_model = PytorchWrapper(identifier=model_name, model=model, preprocessing=preprocessing)
 
     # map layers onto cortical regions using standard commitments
-    model = CORnetCommitment(identifier=model_name, activations_model=activations_model,
-                            layers=layers,
-                            time_mapping={
-                                'V1': {0: (50, 150)},
-                                'V2': {0: (70, 170)},
-                                'V4': {0: (90, 190)},
-                                'IT': {0: (100, 200)},
-                            })
+    model = ModelCommitment(identifier=model_name, activations_model=activations_model,
+                            layers=layers)
 
     # score activation model on given benchmark
     # in this case used public benchmark w/neural recordings in macaque IT
