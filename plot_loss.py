@@ -17,7 +17,7 @@ def plot_loss(args):
     accuracy = np.load(f'plots/{args.model_name}_{args.feedback_connections}_accuracy.npy', allow_pickle=True)
 
     plt.plot(train_loss,label='train loss')
-    plt.title(f'{feeback}_{args.model_name}')
+    plt.title(f'{feedback}_{args.model_name}')
     plt.xlabel('no. of minibatches')
     plt.legend()
     plt.savefig(f'plots/{args.model_name}_{args.feedback_connections}_batchloss.png')
@@ -26,7 +26,7 @@ def plot_loss(args):
     train_loss = train_loss.reshape((len(test_loss), int(len(train_loss)/len(test_loss)))).mean(axis=1)
     plt.plot(train_loss,label='train loss')
     plt.plot(test_loss,label='test loss')
-    plt.title(f'{feeback}_{args.model_name}')
+    plt.title(f'{feedback}_{args.model_name}')
     plt.xlabel('no. of epochs')
     plt.legend()
     plt.savefig(f'plots/{args.model_name}_{args.feedback_connections}_loss.png')
@@ -34,7 +34,7 @@ def plot_loss(args):
 
     plt.plot(accuracy[0],label='train acc')
     plt.plot(accuracy[1],label='test acc')
-    plt.title(f'{feeback}_{args.model_name}')
+    plt.title(f'{feedback}_{args.model_name}')
     plt.xlabel('no. of epochs')
     plt.legend()
     plt.savefig(f'plots/{args.model_name}_{args.feedback_connections}_acc.png')
