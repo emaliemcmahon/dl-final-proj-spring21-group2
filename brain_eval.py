@@ -66,7 +66,9 @@ def parse_args():
     parser.add_argument('-b', '--benchmark', default='dicarlo.MajajHong2015public.IT-pls', type=str,
                         help='the name of benchmark for brain score')
     parser.add_argument('-l', '--layers', default=None, type=str, nargs='+',
-                        help='the specified layers for activation')         
+                        help='the specified layers for activation')    
+    parser.add_argument('-f', '--feedback_connections', default={}, type=str,
+                        help='whether feedback connections were implemented')                          
     args = parser.parse_args()
 
 
@@ -84,7 +86,7 @@ def main():
 
     # load model
     print(f'model: {args.model_name}')
-    model = CORnet(pretrained=True, architecture=args.model_name, feedback_connections='all', n_classes=10)
+    model = CORnet(pretrained=True, architecture=args.model_name, feedback_connections=args.feedback_connections, n_classes=10)
     path = args.checkpoint_path
     model.load_state_dict(torch.load(path))
     model = model.to(device)
